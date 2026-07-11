@@ -1,1573 +1,1333 @@
-﻿"use client";
+"use client";
 
-import { Capacitor, registerPlugin } from "@capacitor/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  siFacebook,
-  siGooglemessages,
-  siInstagram,
-  siMessenger,
-  siTiktok,
-  siWhatsapp,
-  siX,
-  type SimpleIcon,
-} from "simple-icons";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-type SourceApp =
-  | "WhatsApp"
-  | "Instagram"
-  | "Facebook"
-  | "TikTok"
-  | "X / Twitter"
-  | "SMS"
-  | "Diger";
+type Channel = "whatsapp" | "instagram" | "facebook";
+type ConvStatus = "New" | "Open" | "Resolved";
 
-type CaptureMethod = "manual" | "paste" | "share" | "notification";
-type MessageStatus = "new" | "follow_up" | "replied" | "closed";
-type Priority = "low" | "medium" | "high";
+type Message = { from: "me" | "them"; text: string };
 
-type InboxMessage = {
-  id: string;
-  sourceApp: SourceApp;
-  sourcePackage?: string;
-  senderName: string;
-  messageText: string;
-  receivedAt: string;
-  captureMethod: CaptureMethod;
-  status: MessageStatus;
-  priority: Priority;
+type Conversation = {
+  id: number;
+  name: string;
+  channel: Channel;
+  time: string;
+  unread: number;
+  priority: boolean;
+  social: boolean;
+  status: ConvStatus;
   notes: string;
-  nextAction: string;
-  followUpDate: string;
-  customerId?: string;
+  messages: Message[];
 };
 
-type NativeCapturedMessage = {
-  id: string;
-  sourceApp: SourceApp | string;
-  sourcePackage?: string;
-  senderName: string;
-  messageText: string;
-  receivedAt: string;
-  captureMethod: CaptureMethod | string;
-};
-
-type ChannelSetting = {
-  label: string;
-  sourceApp: SourceApp;
-  packageName: string;
-  installed: boolean;
-  enabled: boolean;
-  iconBase64?: string;
-};
-
-type NativeInboxPlugin = {
-  readCapturedMessages: () => Promise<{ messages: NativeCapturedMessage[] }>;
-  clearCapturedMessages: () => Promise<void>;
-  isNotificationAccessEnabled?: () => Promise<{ enabled: boolean }>;
-  openNotificationAccessSettings?: () => Promise<void>;
-  readChannelSettings?: () => Promise<{ channels: NativeChannelSetting[] }>;
-  saveEnabledChannels?: (options: { packages: string[] }) => Promise<{
-    channels: NativeChannelSetting[];
-  }>;
-  requestNotificationListenerRebind?: () => Promise<void>;
-};
-
-type BillingPlanId = "monthly" | "quarterly" | "semiannual" | "yearly";
-
-type BillingPlan = {
-  id: BillingPlanId;
-  productId: string;
-  label: string;
-  price: string;
-  saving: string;
-  billingPeriod?: string;
-  available?: boolean;
-};
-
-type BillingStatus = {
-  active: boolean;
-  available?: boolean;
-  productId?: string;
-  plans?: BillingPlan[];
-  message?: string;
-};
-
-type NativeBillingPlugin = {
-  getSubscriptionStatus: () => Promise<BillingStatus>;
-  purchase: (options: { planId: BillingPlanId }) => Promise<{
-    started: boolean;
-    planId?: BillingPlanId;
-  }>;
-  restorePurchases: () => Promise<BillingStatus>;
-};
-
-type NativeChannelSetting = {
-  label?: string;
-  sourceApp?: SourceApp | string;
-  packageName?: string;
-  installed?: boolean;
-  enabled?: boolean;
-  iconBase64?: string;
-};
-
-const STORAGE_KEY = "tekpanel:phase1:messages";
-const CHANNEL_STORAGE_KEY = "tekpanel:enabledChannels";
-const NativeInbox = registerPlugin<NativeInboxPlugin>("TekPanelInbox");
-const NativeBilling = registerPlugin<NativeBillingPlugin>("TekPanelBilling");
-
-const fallbackBillingPlans: BillingPlan[] = [
-  {
-    available: true,
-    id: "monthly",
-    label: "1 ay",
-    price: "$5",
-    productId: "tekpanel_pro",
-    saving: "Aylik",
-  },
-  {
-    available: true,
-    id: "quarterly",
-    label: "3 ay",
-    price: "$10",
-    productId: "tekpanel_pro",
-    saving: "1 ay avantaj",
-  },
-  {
-    available: true,
-    id: "semiannual",
-    label: "6 ay",
-    price: "$20",
-    productId: "tekpanel_pro",
-    saving: "2 ay avantaj",
-  },
-  {
-    available: true,
-    id: "yearly",
-    label: "12 ay",
-    price: "$45",
-    productId: "tekpanel_pro",
-    saving: "3 ay avantaj",
-  },
-];
-
-const sourceApps: SourceApp[] = [
-  "WhatsApp",
-  "Instagram",
-  "Facebook",
-  "TikTok",
-  "X / Twitter",
-  "SMS",
-  "Diger",
-];
-
-type SourceTheme = {
-  badgeClass: string;
-  borderClass: string;
-  chipClass: string;
-  cardClass: string;
-  accentClass: string;
-  label: string;
-  icon?: SimpleIcon;
-};
-
-const sourceThemes: Record<SourceApp, SourceTheme> = {
-  WhatsApp: {
-    badgeClass: "bg-[#25D366] text-white",
-    borderClass: "border-emerald-300",
-    chipClass: "bg-emerald-900/40 text-emerald-300 ring-emerald-700",
-    cardClass: "bg-[var(--card)] ring-emerald-900",
-    accentClass: "bg-[#25D366]",
-    label: "WA",
-    icon: siWhatsapp,
-  },
-  Instagram: {
-    badgeClass: "bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white",
-    borderClass: "border-fuchsia-300",
-    chipClass: "bg-fuchsia-900/40 text-fuchsia-300 ring-fuchsia-700",
-    cardClass: "bg-[var(--card)] ring-fuchsia-900",
-    accentClass: "bg-gradient-to-b from-[#F58529] via-[#DD2A7B] to-[#8134AF]",
-    label: "IG",
-    icon: siInstagram,
-  },
-  Facebook: {
-    badgeClass: "bg-[#1877F2] text-white",
-    borderClass: "border-blue-300",
-    chipClass: "bg-blue-900/40 text-blue-300 ring-blue-700",
-    cardClass: "bg-[var(--card)] ring-blue-900",
-    accentClass: "bg-[#1877F2]",
-    label: "FB",
-    icon: siFacebook,
-  },
-  TikTok: {
-    badgeClass: "bg-zinc-950 text-white",
-    borderClass: "border-cyan-300",
-    chipClass: "bg-cyan-900/40 text-cyan-300 ring-cyan-700",
-    cardClass: "bg-[var(--card)] ring-cyan-900",
-    accentClass: "bg-zinc-950",
-    label: "TT",
-    icon: siTiktok,
-  },
-  "X / Twitter": {
-    badgeClass: "bg-zinc-950 text-white",
-    borderClass: "border-zinc-300",
-    chipClass: "bg-zinc-800 text-zinc-300 ring-zinc-600",
-    cardClass: "bg-[var(--card)] ring-zinc-700",
-    accentClass: "bg-zinc-950",
-    label: "X",
-    icon: siX,
-  },
-  SMS: {
-    badgeClass: "bg-[#1A73E8] text-white",
-    borderClass: "border-amber-300",
-    chipClass: "bg-amber-900/40 text-amber-300 ring-amber-700",
-    cardClass: "bg-[var(--card)] ring-amber-900",
-    accentClass: "bg-[#1A73E8]",
-    label: "SMS",
-    icon: siGooglemessages,
-  },
-  Diger: {
-    badgeClass: "bg-stone-700 text-white",
-    borderClass: "border-stone-300",
-    chipClass: "bg-stone-800 text-stone-300 ring-stone-600",
-    cardClass: "bg-[var(--card)] ring-stone-700",
-    accentClass: "bg-stone-700",
-    label: "DG",
-  },
-};
-
-const sourceThemeFor = (sourceApp: SourceApp) =>
-  sourceThemes[sourceApp] ?? sourceThemes.Diger;
-
-const sourceDisplayLabel = (sourceApp: SourceApp) =>
-  sourceApp === "Diger" ? "DiÄŸer" : sourceApp;
-
-const brandIconFor = (
-  sourceApp: SourceApp,
-  sourcePackage?: string,
-): SimpleIcon | undefined => {
-  if (sourcePackage === "com.facebook.orca") {
-    return siMessenger;
-  }
-
-  return sourceThemeFor(sourceApp).icon;
-};
-
-function BrandIcon({
-  className = "h-4 w-4",
-  icon,
-  label,
-}: {
-  className?: string;
-  icon?: SimpleIcon;
-  label: string;
-}) {
-  if (!icon) {
-    return <span className="text-[9px] font-black tracking-[0.08em]">{label}</span>;
-  }
-
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      role="img"
-      viewBox="0 0 24 24"
-    >
-      <path d={icon.path} fill="currentColor" />
-    </svg>
-  );
+function buildMask(innerSvg: string): string {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>${innerSvg}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-const fallbackChannels: ChannelSetting[] = [
-  {
-    enabled: true,
-    installed: true,
+const CHANNEL_META: Record<
+  Channel,
+  { label: string; accent: string; avatarBg: string; iconMask: string; desc: string }
+> = {
+  whatsapp: {
     label: "WhatsApp",
-    packageName: "com.whatsapp",
-    sourceApp: "WhatsApp",
+    accent: "#25D366",
+    avatarBg: "#25D366",
+    desc: "Chats and customer messages",
+    iconMask: buildMask(
+      "<path d='M4 4h16a2 2 0 012 2v9a2 2 0 01-2 2H10l-5 4v-4H4a2 2 0 01-2-2V6a2 2 0 012-2z'/>"
+    ),
   },
-  {
-    enabled: true,
-    installed: true,
-    label: "WhatsApp Business",
-    packageName: "com.whatsapp.w4b",
-    sourceApp: "WhatsApp",
-  },
-  {
-    enabled: true,
-    installed: true,
+  instagram: {
     label: "Instagram",
-    packageName: "com.instagram.android",
-    sourceApp: "Instagram",
+    accent: "#E1306C",
+    avatarBg: "linear-gradient(135deg, #F58529 0%, #DD2A7B 55%, #8134AF 100%)",
+    desc: "Direct messages and comments",
+    iconMask: buildMask(
+      "<path fill-rule='evenodd' clip-rule='evenodd' d='M3 6a2 2 0 012-2h3l1-1h6l1 1h3a2 2 0 012 2v13a2 2 0 01-2 2H5a2 2 0 01-2-2V6zm9 3a4 4 0 100 8 4 4 0 000-8zm0 2a2 2 0 110 4 2 2 0 010-4z'/>"
+    ),
   },
-  {
-    enabled: true,
-    installed: true,
-    label: "TikTok",
-    packageName: "com.zhiliaoapp.musically",
-    sourceApp: "TikTok",
+  facebook: {
+    label: "Facebook",
+    accent: "#1877F2",
+    avatarBg: "#1877F2",
+    desc: "Page messages and inbox",
+    iconMask: buildMask(
+      "<path d='M12 4a4 4 0 110 8 4 4 0 010-8zm0 10c4.4 0 8 2.2 8 6v1H4v-1c0-3.8 3.6-6 8-6z'/>"
+    ),
   },
-  {
-    enabled: true,
-    installed: true,
-    label: "X / Twitter",
-    packageName: "com.twitter.android",
-    sourceApp: "X / Twitter",
-  },
-  {
-    enabled: true,
-    installed: true,
-    label: "Messenger",
-    packageName: "com.facebook.orca",
-    sourceApp: "Facebook",
-  },
-  {
-    enabled: true,
-    installed: true,
-    label: "SMS",
-    packageName: "com.google.android.apps.messaging",
-    sourceApp: "SMS",
-  },
+};
+
+const STATUS_COLOR: Record<ConvStatus, string> = {
+  New: "#E1306C",
+  Open: "#25D366",
+  Resolved: "rgba(235,235,245,0.45)",
+};
+
+const QUICK_REPLIES = [
+  "Thanks for reaching out! How can we help?",
+  "Our team will get back to you shortly.",
+  "Here's more info about our services.",
 ];
 
-const createId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
-
-const safeDateISO = (value: unknown, fallback = new Date()) => {
-  const date = value ? new Date(String(value)) : fallback;
-  return Number.isNaN(date.getTime()) ? fallback.toISOString() : date.toISOString();
-};
-
-const safeDateOnly = (value: unknown) => {
-  const text = String(value ?? "").slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : todayISO();
-};
-
-const buildCustomerId = (sourceApp: SourceApp, senderName: string) =>
-  `${sourceApp}:${senderName.trim().toLocaleLowerCase("tr-TR")}`;
-
-const toSourceApp = (value: unknown): SourceApp => {
-  const text = String(value ?? "");
-
-  if (text === "Diger") {
-    return "Diger";
-  }
-  if (text === "Telefon") {
-    return "SMS";
-  }
-  if (text === "Messenger") {
-    return "Facebook";
-  }
-  if (text === "SMS") {
-    return "SMS";
-  }
-
-  return sourceApps.includes(text as SourceApp) ? (text as SourceApp) : "Diger";
-};
-
-const normalizeChannelSetting = (
-  value: NativeChannelSetting,
-): ChannelSetting | null => {
-  const packageName = String(value.packageName ?? "").trim();
-  const label = String(value.label ?? "").trim();
-
-  if (!packageName || !label) {
-    return null;
-  }
-
-  return {
-    enabled: value.enabled !== false,
-    installed: value.installed !== false,
-    label,
-    packageName,
-    sourceApp: toSourceApp(value.sourceApp),
-    iconBase64: typeof value.iconBase64 === "string" && value.iconBase64.trim() ? value.iconBase64.trim() : undefined,
-  };
-};
-
-const readStoredChannels = () => {
-  try {
-    const raw = localStorage.getItem(CHANNEL_STORAGE_KEY);
-    const enabledPackages = raw ? (JSON.parse(raw) as unknown) : null;
-    if (!Array.isArray(enabledPackages)) {
-      return fallbackChannels;
-    }
-
-    const enabled = new Set(enabledPackages.map((item) => String(item)));
-    return fallbackChannels.map((channel) => ({
-      ...channel,
-      enabled: enabled.has(channel.packageName),
-    }));
-  } catch {
-    return fallbackChannels;
-  }
-};
-
-const persistStoredChannels = (channels: ChannelSetting[]) => {
-  localStorage.setItem(
-    CHANNEL_STORAGE_KEY,
-    JSON.stringify(
-      channels
-        .filter((channel) => channel.enabled)
-        .map((channel) => channel.packageName),
-    ),
-  );
-};
-
-const toCaptureMethod = (value: unknown): CaptureMethod =>
-  ["manual", "paste", "share", "notification"].includes(String(value))
-    ? (value as CaptureMethod)
-    : "notification";
-
-const toStatus = (value: unknown): MessageStatus =>
-  ["new", "follow_up", "replied", "closed"].includes(String(value))
-    ? (value as MessageStatus)
-    : "new";
-
-const toPriority = (value: unknown): Priority =>
-  ["low", "medium", "high"].includes(String(value))
-    ? (value as Priority)
-    : "medium";
-
-const normalizeStoredMessage = (value: unknown): InboxMessage | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const item = value as Partial<InboxMessage>;
-  const sourceApp = toSourceApp(item.sourceApp);
-  const senderName = String(item.senderName ?? "").trim();
-  const messageText = String(item.messageText ?? "").trim();
-
-  if (!senderName || !messageText) {
-    return null;
-  }
-
-  return {
-    id: String(item.id ?? createId()),
-    sourceApp,
-    sourcePackage: String(item.sourcePackage ?? ""),
-    senderName,
-    messageText,
-    receivedAt: safeDateISO(item.receivedAt),
-    captureMethod: toCaptureMethod(item.captureMethod),
-    status: toStatus(item.status),
-    priority: toPriority(item.priority),
-    notes: String(item.notes ?? ""),
-    nextAction: String(item.nextAction ?? "Cevap ver"),
-    followUpDate: safeDateOnly(item.followUpDate),
-    customerId:
-      String(item.customerId ?? "").startsWith("Telefon:")
-        ? buildCustomerId(sourceApp, senderName)
-        : item.customerId ?? buildCustomerId(sourceApp, senderName),
-  };
-};
-
-const fromNativeMessage = (message: NativeCapturedMessage): InboxMessage | null => {
-  const sourceApp = toSourceApp(message.sourceApp);
-  const senderName = String(message.senderName ?? "").trim() || "Yakalanan mesaj";
-  const messageText = String(message.messageText ?? "").trim();
-
-  if (!messageText) {
-    return null;
-  }
-
-  return {
-    id: String(message.id ?? createId()),
-    sourceApp,
-    sourcePackage: String(message.sourcePackage ?? ""),
-    senderName,
-    messageText,
-    receivedAt: safeDateISO(message.receivedAt),
-    captureMethod: toCaptureMethod(message.captureMethod),
-    status: "new",
-    priority: "medium",
-    notes: "",
-    nextAction: "Cevap ver",
-    followUpDate: todayISO(),
-    customerId: buildCustomerId(sourceApp, senderName),
-  };
-};
-
-const readStoredMessages = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed
-      .map((item) => normalizeStoredMessage(item))
-      .filter((message): message is InboxMessage => Boolean(message));
-  } catch {
-    return [];
-  }
-};
-
-const sortByNewest = (messages: InboxMessage[]) =>
-  [...messages].sort(
-    (left, right) =>
-      new Date(right.receivedAt).getTime() -
-      new Date(left.receivedAt).getTime(),
-  );
-
-const formatDateTime = (value: string) => {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Tarih yok";
-  }
-
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-  }).format(date);
-};
-
-
-function useDominantColors(channels: ChannelSetting[]) {
-  const [colors, setColors] = useState<Record<string, string>>({});
-  const processed = useRef(new Set<string>());
-
-  useEffect(() => {
-    channels.forEach((channel) => {
-      if (channel.iconBase64 && !processed.current.has(channel.packageName)) {
-        processed.current.add(channel.packageName);
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = 1;
-          canvas.height = 1;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, 1, 1);
-            const data = ctx.getImageData(0, 0, 1, 1).data;
-            if (data[3] > 0) {
-              setColors((prev) => ({
-                ...prev,
-                [channel.packageName]: `rgb(${data[0]}, ${data[1]}, ${data[2]})`,
-              }));
-            }
-          }
-        };
-        img.src = `data:image/png;base64,${channel.iconBase64}`;
-      }
-    });
-  }, [channels]);
-
-  return colors;
-}
+const INITIAL_CONVERSATIONS: Conversation[] = [];
 
 export default function Home() {
+  const [view, setView] = useState<"splash" | "app">("splash");
+  const [tab, setTab] = useState<"inbox" | "dashboard" | "channels">("inbox");
+  const [activeConvId, setActiveConvId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [expandedSection, setExpandedSection] = useState<string | null>("priority");
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [typingConvId, setTypingConvId] = useState<number | null>(null);
+  const [channelsConnected, setChannelsConnected] = useState({
+    whatsapp: true,
+    instagram: true,
+    facebook: true,
+  });
+  const [conversations, setConversations] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
 
-  const [messages, setMessages] = useState<InboxMessage[]>([]);
-  const [channels, setChannels] = useState<ChannelSetting[]>(fallbackChannels);
-  const [isChannelPanelOpen, setIsChannelPanelOpen] = useState(false);
-  const dominantColors = useDominantColors(channels);
-  const [selectedChannelPackage, setSelectedChannelPackage] =
-    useState<string>("all");
-  const [isNotificationAccessEnabled, setIsNotificationAccessEnabled] =
-    useState<boolean | null>(null);
-  const [billingPlans, setBillingPlans] =
-    useState<BillingPlan[]>(fallbackBillingPlans);
-  const [isSubscriptionActive, setIsSubscriptionActive] = useState(false);
-  const [isBillingAvailable, setIsBillingAvailable] = useState(false);
-  const [billingMessage, setBillingMessage] = useState("");
-  const [isBillingSheetOpen, setIsBillingSheetOpen] = useState(false);
-  const [billingBusyPlan, setBillingBusyPlan] = useState<BillingPlanId | "restore" | null>(null);
-  const hasLoadedStorage = useRef(false);
-  const isNative = useMemo(() => Capacitor.isNativePlatform(), []);
-  const enabledChannelCount = useMemo(
-    () => channels.filter((channel) => channel.enabled).length,
-    [channels],
-  );
-
-  const applyBillingStatus = useCallback((status: BillingStatus) => {
-    const nextPlans =
-      Array.isArray(status.plans) && status.plans.length > 0
-        ? fallbackBillingPlans.map((fallback) => {
-            const nativePlan = status.plans?.find((plan) => plan.id === fallback.id);
-            return nativePlan ? { ...fallback, ...nativePlan } : fallback;
-          })
-        : fallbackBillingPlans;
-
-    setBillingPlans(nextPlans);
-    setIsSubscriptionActive(Boolean(status.active));
-    setIsBillingAvailable(Boolean(status.available));
-    setBillingMessage(String(status.message ?? ""));
-  }, []);
-
-  const refreshBillingStatus = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) {
-      setBillingPlans(fallbackBillingPlans);
-      setIsBillingAvailable(false);
-      setIsSubscriptionActive(false);
-      setBillingMessage("Odeme Google Play surumunde aktif olur.");
-      return;
-    }
-
-    try {
-      const status = await NativeBilling.getSubscriptionStatus();
-      applyBillingStatus(status);
-    } catch (error) {
-      setBillingPlans(fallbackBillingPlans);
-      setIsBillingAvailable(false);
-      setBillingMessage(
-        error instanceof Error
-          ? error.message
-          : "Google Play odeme durumu okunamadi.",
-      );
-    }
-  }, [applyBillingStatus]);
-
-  const purchasePlan = useCallback(
-    async (planId: BillingPlanId) => {
-      if (!Capacitor.isNativePlatform()) {
-        setBillingMessage("Satinalma Google Play surumunde calisir.");
-        return;
-      }
-
-      setBillingBusyPlan(planId);
-      setBillingMessage("");
-
-      try {
-        await NativeBilling.purchase({ planId });
-        window.setTimeout(() => {
-          void refreshBillingStatus();
-        }, 1400);
-      } catch (error) {
-        setBillingMessage(
-          error instanceof Error ? error.message : "Satinalma baslatilamadi.",
-        );
-      } finally {
-        setBillingBusyPlan(null);
-      }
-    },
-    [refreshBillingStatus],
-  );
-
-  const restorePurchases = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) {
-      setBillingMessage("Geri yukleme Google Play surumunde calisir.");
-      return;
-    }
-
-    setBillingBusyPlan("restore");
-    setBillingMessage("");
-
-    try {
-      const status = await NativeBilling.restorePurchases();
-      applyBillingStatus(status);
-      setBillingMessage(status.active ? "Abonelik aktif." : "Aktif abonelik bulunamadi.");
-    } catch (error) {
-      setBillingMessage(
-        error instanceof Error ? error.message : "Satin almalar geri yuklenemedi.",
-      );
-    } finally {
-      setBillingBusyPlan(null);
-    }
-  }, [applyBillingStatus]);
-
-  const loadChannelSettings = useCallback(async () => {
-    if (!Capacitor.isNativePlatform() || !NativeInbox.readChannelSettings) {
-      setChannels(readStoredChannels());
-      return;
-    }
-
-    try {
-      const result = await NativeInbox.readChannelSettings();
-      const nativeChannels = Array.isArray(result.channels) ? result.channels : [];
-      const normalized = nativeChannels
-        .map((channel) => normalizeChannelSetting(channel))
-        .filter((channel): channel is ChannelSetting => Boolean(channel));
-      setChannels(normalized.length > 0 ? normalized : readStoredChannels());
-    } catch {
-      setChannels(readStoredChannels());
-    }
-  }, []);
-
-  const saveChannelSettings = useCallback(async (nextChannels: ChannelSetting[]) => {
-    setChannels(nextChannels);
-    persistStoredChannels(nextChannels);
-
-    if (!Capacitor.isNativePlatform() || !NativeInbox.saveEnabledChannels) {
-      return;
-    }
-
-    try {
-      const result = await NativeInbox.saveEnabledChannels({
-        packages: nextChannels
-          .filter((channel) => channel.enabled)
-          .map((channel) => channel.packageName),
-      });
-      const nativeChannels = Array.isArray(result.channels) ? result.channels : [];
-      const normalized = nativeChannels
-        .map((channel) => normalizeChannelSetting(channel))
-        .filter((channel): channel is ChannelSetting => Boolean(channel));
-      if (normalized.length > 0) {
-        setChannels(normalized);
-        persistStoredChannels(normalized);
-      }
-    } catch {
-      // The local UI still reflects the user's channel choice.
-    }
-  }, []);
-
-  const refreshNotificationAccess = useCallback(async () => {
-    if (!Capacitor.isNativePlatform() || !NativeInbox.isNotificationAccessEnabled) {
-      setIsNotificationAccessEnabled(null);
-      return;
-    }
-
-    try {
-      const result = await NativeInbox.isNotificationAccessEnabled();
-      setIsNotificationAccessEnabled(Boolean(result.enabled));
-    } catch {
-      setIsNotificationAccessEnabled(null);
-    }
-  }, []);
-
-  const openNotificationAccess = useCallback(async () => {
-    if (!Capacitor.isNativePlatform() || !NativeInbox.openNotificationAccessSettings) {
-      return;
-    }
-
-    try {
-      await NativeInbox.openNotificationAccessSettings();
-      window.setTimeout(() => {
-        void refreshNotificationAccess();
-      }, 800);
-    } catch {
-      // The channel panel stays usable even if Android settings cannot open.
-    }
-  }, [refreshNotificationAccess]);
-
-  const toggleChannel = useCallback(
-    (packageName: string) => {
-      const nextChannels = channels.map((channel) =>
-        channel.packageName === packageName
-          ? { ...channel, enabled: !channel.enabled }
-          : channel,
-      );
-      void saveChannelSettings(nextChannels);
-    },
-    [channels, saveChannelSettings],
-  );
-
-  const clearScreen = useCallback(async () => {
-    const confirmed = window.confirm(
-      "EkranÄ± tertemiz yapmak istediÄŸine emin misin?",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setMessages([]);
-    localStorage.removeItem(STORAGE_KEY);
-
-    if (Capacitor.isNativePlatform()) {
-      try {
-        await NativeInbox.clearCapturedMessages();
-      } catch {
-        // Local screen is still cleared even if the native bridge rejects.
-      }
-    }
-  }, []);
-  const toggleAllChannels = useCallback(() => {
-    const shouldEnable = !channels.every((channel) => channel.enabled);
-    const nextChannels = channels.map((channel) => ({
-      ...channel,
-      enabled: shouldEnable,
-    }));
-    void saveChannelSettings(nextChannels);
-  }, [channels, saveChannelSettings]);
-  const markAsRead = useCallback((id: string) => {
-    setMessages((current) => current.filter((message) => message.id !== id));
-  }, []);
-
-  const syncCapturedMessages = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) {
-      return;
-    }
-
-    try {
-      await NativeInbox.requestNotificationListenerRebind?.();
-      const result = await NativeInbox.readCapturedMessages();
-      const nativeMessages = Array.isArray(result.messages) ? result.messages : [];
-      const captured = nativeMessages
-        .map((message) => fromNativeMessage(message))
-        .filter((message): message is InboxMessage => Boolean(message));
-
-      if (captured.length > 0) {
-        setMessages((current) => {
-          const existingIds = new Set(current.map((message) => message.id));
-          const fresh = captured.filter((message) => !existingIds.has(message.id));
-          return fresh.length > 0 ? sortByNewest([...fresh, ...current]) : current;
-        });
-      }
-
-      await NativeInbox.clearCapturedMessages();
-    } catch {
-      // The screen stays passive; Android keeps capture details internally.
-    }
-  }, []);
+  const splashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const replyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setMessages(sortByNewest(readStoredMessages()));
-      hasLoadedStorage.current = true;
-      void loadChannelSettings();
-      void refreshNotificationAccess();
-      void refreshBillingStatus();
-
-      if (Capacitor.isNativePlatform()) {
-        window.setTimeout(() => {
-          void syncCapturedMessages();
-        }, 250);
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [loadChannelSettings, refreshBillingStatus, refreshNotificationAccess, syncCapturedMessages]);
-
-  useEffect(() => {
-    if (hasLoadedStorage.current) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    if (!isNative) {
-      return;
-    }
-
-    const syncSilently = () => {
-      void syncCapturedMessages();
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        syncSilently();
-        void refreshNotificationAccess();
-        void refreshBillingStatus();
-      }
-    };
-
-    const interval = window.setInterval(syncSilently, 3000);
-    const handleFocus = () => {
-      syncSilently();
-      void refreshNotificationAccess();
-      void refreshBillingStatus();
-    };
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
+    splashTimer.current = setTimeout(() => setView("app"), 1700);
     return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearTimeout(splashTimer.current);
+      clearTimeout(replyTimer.current);
+      clearTimeout(toastTimer.current);
     };
-  }, [isNative, refreshBillingStatus, refreshNotificationAccess, syncCapturedMessages]);
+  }, []);
 
-  const sortedMessages = useMemo(() => sortByNewest(messages), [messages]);
-  const enabledChannels = useMemo(
-    () => channels.filter((channel) => channel.enabled),
-    [channels],
-  );
-  const areAllChannelsEnabled = useMemo(
-    () => channels.length > 0 && channels.every((channel) => channel.enabled),
-    [channels],
-  );
-  const effectiveSelectedChannelPackage = useMemo(
-    () =>
-      selectedChannelPackage !== "all" &&
-      enabledChannels.some(
-        (channel) => channel.packageName === selectedChannelPackage,
-      )
-        ? selectedChannelPackage
-        : "all",
-    [enabledChannels, selectedChannelPackage],
-  );
-  const selectedChannel = useMemo(
-    () =>
-      effectiveSelectedChannelPackage === "all"
-        ? null
-        : channels.find(
-            (channel) => channel.packageName === effectiveSelectedChannelPackage,
-          ) ??
-          null,
-    [channels, effectiveSelectedChannelPackage],
-  );
-  const visibleMessages = useMemo(() => {
-    if (!selectedChannel) {
-      return sortedMessages;
-    }
+  const goToTab = useCallback((t: "inbox" | "dashboard" | "channels") => {
+    setTab(t);
+    setActiveConvId(null);
+    setSearchQuery("");
+    setChannelFilter("all");
+  }, []);
 
-    return sortedMessages.filter((message) => {
-      if (message.sourcePackage) {
-        return message.sourcePackage === selectedChannel.packageName;
-      }
+  const openConversation = useCallback((id: number) => {
+    setActiveConvId(id);
+    setStatusMenuOpen(false);
+    setDraft("");
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c))
+    );
+  }, []);
 
-      return message.sourceApp === selectedChannel.sourceApp;
-    });
-  }, [selectedChannel, sortedMessages]);
+  const closeConversation = useCallback(() => {
+    setActiveConvId(null);
+    setStatusMenuOpen(false);
+  }, []);
 
-  const todayStamp = useMemo(
-    () =>
-      new Intl.DateTimeFormat("tr-TR", {
-        day: "2-digit",
-        month: "long",
-        weekday: "long",
-      }).format(new Date()),
-    [],
+  const updateConv = useCallback((id: number, updater: (c: Conversation) => Conversation) => {
+    setConversations((prev) => prev.map((c) => (c.id === id ? updater(c) : c)));
+  }, []);
+
+  const sendText = useCallback(
+    (text: string) => {
+      if (!activeConvId || !text.trim()) return;
+      updateConv(activeConvId, (c) => ({
+        ...c,
+        messages: [...c.messages, { from: "me" as const, text: text.trim() }],
+        unread: 0,
+      }));
+      setDraft("");
+      setTypingConvId(activeConvId);
+      clearTimeout(replyTimer.current);
+      replyTimer.current = setTimeout(() => {
+        updateConv(activeConvId, (c) => ({
+          ...c,
+          messages: [
+            ...c.messages,
+            { from: "them" as const, text: "Thanks for the quick reply, appreciate it!" },
+          ],
+        }));
+        setTypingConvId((prev) => (prev === activeConvId ? null : prev));
+      }, 1400);
+    },
+    [activeConvId, updateConv]
   );
 
-  const showAccessGate = isNative && isNotificationAccessEnabled === false;
+  const sendDraft = useCallback(() => sendText(draft), [draft, sendText]);
 
-  return (
-    <main className="min-h-screen bg-[var(--paper)] text-[var(--ink-primary)]">
-      {isChannelPanelOpen ? (
-        <section className="ledger-panel-in fixed inset-0 z-40 mx-auto flex w-full max-w-[390px] flex-col overflow-y-auto bg-[var(--surface)] px-4 pb-6 pt-4 text-[var(--ink-primary)] sm:max-w-[430px]">
-          <div className="flex items-center justify-between gap-3 border-b border-[var(--border-soft)] pb-3">
-            <div className="min-w-0">
-              <h2 className="text-[21px] font-black tracking-[-0.035em]">
-                KanallarÄ± ayarla
-              </h2>
-              <p className="mt-1 text-[13px] font-semibold text-[var(--ink-secondary)]">
-                {enabledChannelCount} kanal aÃ§Ä±k
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsChannelPanelOpen(false)}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--subtle)] text-[28px] font-black leading-none text-[var(--ink-primary)] transition active:scale-[0.95]"
-              aria-label="Kapat"
-            >
-              Ã—
-            </button>
+  const setStatus = useCallback(
+    (status: ConvStatus) => {
+      if (!activeConvId) return;
+      updateConv(activeConvId, (c) => ({ ...c, status }));
+      setStatusMenuOpen(false);
+    },
+    [activeConvId, updateConv]
+  );
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2000);
+  }, []);
+
+  const toggleChannel = useCallback((key: Channel) => {
+    setChannelsConnected((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const toggleSection = useCallback((key: string) => {
+    setExpandedSection((prev) => (prev === key ? null : key));
+  }, []);
+
+  // Derived data
+  const enriched = conversations.map((c) => {
+    const m = CHANNEL_META[c.channel];
+    return {
+      ...c,
+      channelLabel: m.label,
+      channelAccent: m.accent,
+      avatarBg: m.avatarBg,
+      iconMask: m.iconMask,
+      statusColor: STATUS_COLOR[c.status],
+      lastMessageText: c.messages[c.messages.length - 1].text,
+    };
+  });
+
+  const searchLower = searchQuery.trim().toLowerCase();
+  const inboxList = enriched.filter((c) => {
+    const matchFilter = channelFilter === "all" || c.channel === channelFilter;
+    const matchSearch =
+      !searchLower ||
+      c.name.toLowerCase().includes(searchLower) ||
+      c.lastMessageText.toLowerCase().includes(searchLower);
+    return matchFilter && matchSearch;
+  });
+
+  const priorityList = enriched.filter((c) => c.priority);
+  const unreadList = enriched.filter((c) => c.unread > 0 && !c.social);
+  const socialList = enriched.filter((c) => c.social);
+  const totalUnread = enriched.reduce((sum, c) => sum + c.unread, 0);
+  const openCount = enriched.filter((c) => c.status === "Open").length;
+
+  const currentConv = activeConvId ? enriched.find((c) => c.id === activeConvId) ?? null : null;
+
+  const channelsList = (["whatsapp", "instagram", "facebook"] as Channel[]).map((key) => {
+    const m = CHANNEL_META[key];
+    const connected = channelsConnected[key];
+    return {
+      key,
+      label: m.label,
+      desc: m.desc,
+      avatarBg: m.avatarBg,
+      iconMask: m.iconMask,
+      accent: m.accent,
+      connected,
+      trackBg: connected ? m.accent : "rgba(255,255,255,0.12)",
+      knobX: connected ? "translateX(19px)" : "translateX(1px)",
+    };
+  });
+  const channelsConnectedCount = channelsList.filter((c) => c.connected).length;
+
+  const filterChips = [
+    { key: "all", label: "All", active: channelFilter === "all", accent: undefined },
+    { key: "whatsapp", label: "WhatsApp", active: channelFilter === "whatsapp", accent: "#25D366" },
+    { key: "instagram", label: "Instagram", active: channelFilter === "instagram", accent: "#E1306C" },
+    { key: "facebook", label: "Facebook", active: channelFilter === "facebook", accent: "#1877F2" },
+  ].map((chip) => ({
+    ...chip,
+    bg: chip.active ? (chip.accent ?? "rgba(235,235,245,0.9)") : "rgba(255,255,255,0.05)",
+    color: chip.active ? (chip.key === "all" ? "#05060A" : "#FFFFFF") : "rgba(235,235,245,0.75)",
+    border: chip.active ? "transparent" : "rgba(255,255,255,0.08)",
+  }));
+
+  const activeTabColor = "#1877F2";
+  const inactiveTabColor = "rgba(235,235,245,0.4)";
+  const inboxTabColor = view === "app" && !currentConv && tab === "inbox" ? activeTabColor : inactiveTabColor;
+  const dashboardTabColor = view === "app" && !currentConv && tab === "dashboard" ? activeTabColor : inactiveTabColor;
+  const channelsTabColor = view === "app" && !currentConv && tab === "channels" ? activeTabColor : inactiveTabColor;
+
+  const bg: React.CSSProperties = {
+    height: "100dvh",
+    width: "100%",
+    position: "relative",
+    background: "linear-gradient(180deg, #121620 0%, #0A0D12 55%)",
+    overflow: "hidden",
+    fontFamily: "'Nunito', -apple-system, system-ui, sans-serif",
+  };
+
+  // ── SPLASH ──────────────────────────────────────────────────────────────────
+  if (view === "splash") {
+    return (
+      <div
+        style={{
+          ...bg,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+          padding: 32,
+          textAlign: "center",
+          background:
+            "radial-gradient(circle at 18% 18%, rgba(225,48,108,0.35) 0%, transparent 42%), " +
+            "radial-gradient(circle at 88% 22%, rgba(37,211,102,0.3) 0%, transparent 42%), " +
+            "radial-gradient(circle at 50% 92%, rgba(24,119,242,0.3) 0%, transparent 50%), #05070B",
+          animation: "sp-fade-in 0.3s ease both",
+        }}
+      >
+        <div
+          style={{
+            width: 104,
+            height: 104,
+            borderRadius: 32,
+            background: "#1a1d2e",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 20px 44px rgba(0,0,0,0.55)",
+            fontSize: 48,
+          }}
+        >
+          📨
+        </div>
+        <div
+          style={{
+            fontFamily: "'Quicksand', sans-serif",
+            fontWeight: 800,
+            fontSize: 30,
+            letterSpacing: "-0.5px",
+            marginTop: 6,
+          }}
+        >
+          <span style={{ color: "#F5F6F8" }}>Single</span>
+          <span style={{ color: "#1877F2" }}>Panel</span>
+        </div>
+        <div style={{ fontFamily: "'Nunito', sans-serif", fontSize: 15, color: "rgba(235,235,245,0.55)" }}>
+          All messages. One panel.
+        </div>
+        <div style={{ display: "flex", gap: 6, marginTop: 36 }}>
+          <div
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: "#E1306C",
+              animation: "sp-pulse 1.2s ease-in-out infinite",
+            }}
+          />
+          <div
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: "#25D366",
+              animation: "sp-pulse 1.2s ease-in-out infinite 0.15s",
+            }}
+          />
+          <div
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: "#1877F2",
+              animation: "sp-pulse 1.2s ease-in-out infinite 0.3s",
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── CONVERSATION VIEW ────────────────────────────────────────────────────────
+  if (currentConv) {
+    return (
+      <div style={{ ...bg, display: "flex", flexDirection: "column" }}>
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "54px 16px 14px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            flexShrink: 0,
+          }}
+        >
+          <button
+            onClick={closeConversation}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.07)",
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <svg width="10" height="16" viewBox="0 0 10 16">
+              <path d="M9 1L2 8l7 7" stroke="#F5F6F8" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: currentConv.avatarBg,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
+            }}
+          >
+            <div
+              style={{
+                width: 19,
+                height: 19,
+                background: "#fff",
+                maskImage: currentConv.iconMask,
+                WebkitMaskImage: currentConv.iconMask,
+                maskSize: "contain",
+                WebkitMaskSize: "contain",
+                maskRepeat: "no-repeat",
+                WebkitMaskRepeat: "no-repeat",
+                maskPosition: "center",
+                WebkitMaskPosition: "center",
+              }}
+            />
           </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#F5F6F8" }}>{currentConv.name}</div>
+            <div style={{ fontSize: 12, color: currentConv.channelAccent }}>{currentConv.channelLabel}</div>
+          </div>
+          <div
+            style={{
+              padding: "4px 10px",
+              borderRadius: 100,
+              background: "rgba(255,255,255,0.07)",
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ fontWeight: 600, fontSize: 11, color: currentConv.statusColor }}>
+              {currentConv.status}
+            </span>
+          </div>
+        </div>
 
-          {channels.length === 0 ? (
-            <p className="py-5 text-[14px] leading-6 text-[var(--ink-secondary)]">
-              Bu telefonda mesaj kanalÄ± bulunamadÄ±.
-            </p>
-          ) : (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--border-soft)] bg-[var(--card)]">
-              <button
-                type="button"
-                onClick={() => void toggleAllChannels()}
-                className="flex min-h-[56px] w-full items-center justify-between gap-3 border-b border-[var(--border-soft)] bg-[var(--subtle)] px-4 py-3 text-left transition active:scale-[0.99]"
-                aria-label="TÃ¼mÃ¼nÃ¼ aÃ§"
-                aria-pressed={areAllChannelsEnabled}
+        {/* Messages */}
+        <div style={{ flex: 1, overflow: "auto", padding: "18px 16px 0" }} className="no-scrollbar">
+          {currentConv.messages.map((msg, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: msg.from === "me" ? "flex-end" : "flex-start",
+                marginBottom: 10,
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: "75%",
+                  padding: "11px 14px",
+                  borderRadius: 22,
+                  background: msg.from === "me" ? currentConv.channelAccent : "#1B212B",
+                  color: msg.from === "me" ? "#FFFFFF" : "#F1F2F5",
+                  fontSize: 14.5,
+                  lineHeight: 1.4,
+                }}
               >
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-black text-[var(--ink-primary)]">
-                    TÃ¼mÃ¼nÃ¼ aÃ§
-                  </span>
-                  <span className="mt-0.5 block text-[12px] font-semibold text-[var(--ink-primary)]/55">
-                    Tek dokunuÅŸla tÃ¼m kaynaklarÄ± seÃ§
-                  </span>
-                </span>
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 text-[15px] font-black leading-none transition ${
-                    areAllChannelsEnabled
-                      ? "border-black bg-black text-white"
-                      : "border-black/25 bg-transparent text-transparent"
-                  }`}
-                >
-                  âœ“
-                </span>
-              </button>
+                {msg.text}
+              </div>
+            </div>
+          ))}
 
-              {channels.map((channel) => {
-                const theme = sourceThemeFor(channel.sourceApp);
-
-                return (
-                  <button
-                    key={channel.packageName}
-                    type="button"
-                    onClick={() => toggleChannel(channel.packageName)}
-                    className="flex min-h-[60px] w-full items-center justify-between gap-3 border-b border-[var(--border-soft)] bg-[var(--card)] px-4 py-3 text-left text-[var(--ink-primary)] transition last:border-b-0 active:bg-[var(--subtle)]"
-                    aria-pressed={channel.enabled}
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[10px] font-black tracking-[0.12em] ${
-                          channel.iconBase64 ? "bg-black/10 text-[var(--ink-primary)]" : theme.badgeClass
-                        }`}
-                      >
-                        {channel.iconBase64 ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={`data:image/png;base64,${channel.iconBase64}`}
-                            alt=""
-                            className="h-6 w-6 rounded-md object-contain"
-                          />
-                        ) : (
-                          <BrandIcon
-                            className="h-5 w-5"
-                            icon={brandIconFor(channel.sourceApp, channel.packageName)}
-                            label={theme.label}
-                          />
-                        )}
-                      </span>
-                      <span className="block min-w-0">
-                        <span className="block truncate text-[15px] font-bold">
-                          {channel.label}
-                        </span>
-                        <span className="mt-0.5 block text-[12px] font-semibold text-[var(--ink-primary)]/50">
-                          {channel.enabled ? "AÃ§Ä±k" : "KapalÄ±"}
-                        </span>
-                      </span>
-                    </span>
-                    <span
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 text-[15px] font-black leading-none transition ${
-                        channel.enabled
-                          ? "border-black bg-black text-white"
-                          : "border-black/25 bg-transparent text-transparent"
-                      }`}
-                    >
-                      âœ“
-                    </span>
-                  </button>
-                );
-              })}
+          {typingConvId === currentConv.id && (
+            <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 10 }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 4,
+                  padding: "13px 16px",
+                  borderRadius: 22,
+                  background: "#1B212B",
+                }}
+              >
+                {[0, 0.15, 0.3].map((delay, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: "rgba(235,235,245,0.6)",
+                      animation: `sp-dot 1s ease-in-out infinite ${delay}s`,
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
-          {isNative && !isNotificationAccessEnabled ? (
-            <button
-              type="button"
-              onClick={() => void openNotificationAccess()}
-              className="mt-4 block w-full rounded-2xl bg-[var(--accent-fg)] px-4 py-4 text-left text-[var(--accent-bg)] transition active:scale-[0.99]"
+          {currentConv.notes ? (
+            <div
+              style={{
+                margin: "10px 0 14px",
+                padding: "14px 16px",
+                background: "#141922",
+                border: "1px solid rgba(255,255,255,0.05)",
+                borderRadius: 22,
+                borderLeft: "3px solid #25D366",
+                boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
+              }}
             >
-              <span className="block text-[15px] font-black">
-                Bu ayarÄ± aÃ§man gerekiyor
-              </span>
-              <span className="mt-1 block text-[13px] leading-5 text-white/75">
-                Dokun, aÃ§Ä±lan listede bu uygulamaya bildirim eriÅŸimi ver.
-              </span>
-            </button>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#F5F6F8", marginBottom: 4 }}>Notes</div>
+              <div style={{ fontSize: 13, color: "rgba(235,235,245,0.6)", lineHeight: 1.4 }}>{currentConv.notes}</div>
+            </div>
           ) : null}
-        </section>
-      ) : null}
-      {isBillingSheetOpen ? (
-        <section className="fixed inset-0 z-50 mx-auto flex w-full max-w-[390px] flex-col justify-end bg-black/70 px-4 pb-4 sm:max-w-[430px]">
-          <div className="sheet-up max-h-[88vh] overflow-y-auto rounded-3xl border border-[var(--border-strong)] bg-[var(--surface)] p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
-                  Google Play aboneligi
-                </p>
-                <h2 className="mt-1 text-[24px] font-black tracking-[-0.04em] text-[var(--ink-primary)]">
-                  TekPanel Pro
-                </h2>
-                <p className="mt-1 text-[13px] font-semibold leading-5 text-[var(--ink-secondary)]">
-                  Mesaj bildirimlerini tek kutuda toplamak icin abonelik planini sec.
-                </p>
+
+          {/* Status card */}
+          <div
+            style={{
+              margin: "0 0 14px",
+              padding: "14px 16px",
+              background: "#141922",
+              border: "1px solid rgba(255,255,255,0.05)",
+              borderRadius: 22,
+              borderLeft: "3px solid #1877F2",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
+            }}
+          >
+            <button
+              onClick={() => setStatusMenuOpen((v) => !v)}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                cursor: "pointer",
+                width: "100%",
+                background: "none",
+                border: "none",
+                padding: 0,
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#F5F6F8" }}>Status</div>
+              <svg width="8" height="14" viewBox="0 0 8 14">
+                <path d="M1 1l6 6-6 6" stroke="rgba(235,235,245,0.4)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <div style={{ marginTop: 8, fontWeight: 600, fontSize: 14, color: currentConv.statusColor }}>
+              {currentConv.status}
+            </div>
+            {statusMenuOpen && (
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                {(["New", "Open", "Resolved"] as ConvStatus[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatus(s)}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 16,
+                      background: "rgba(255,255,255,0.05)",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 13.5,
+                      color: "#F5F6F8",
+                      textAlign: "left",
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
-              <button
-                type="button"
-                onClick={() => setIsBillingSheetOpen(false)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--subtle)] text-[22px] font-black leading-none text-[var(--ink-primary)] transition active:scale-[0.95]"
-                aria-label="Kapat"
-              >
-                x
-              </button>
+            )}
+          </div>
+
+          {/* Quick Replies */}
+          <div
+            style={{
+              margin: "0 0 120px",
+              padding: "14px 16px",
+              background: "#141922",
+              border: "1px solid rgba(255,255,255,0.05)",
+              borderRadius: 22,
+              borderLeft: "3px solid #E1306C",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: 13, color: "#F5F6F8", marginBottom: 8 }}>Quick Replies</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {QUICK_REPLIES.map((text, i) => (
+                <button
+                  key={i}
+                  onClick={() => sendText(text)}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 16,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 13.5,
+                    color: "rgba(235,235,245,0.85)",
+                    textAlign: "left",
+                  }}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Input */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: "10px 16px 34px",
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            background: "linear-gradient(180deg, rgba(10,13,18,0) 0%, #0A0D12 35%)",
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Type a reply..."
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); sendDraft(); } }}
+            style={{
+              flex: 1,
+              background: "#141922",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 22,
+              padding: "12px 16px",
+              color: "#F5F6F8",
+              fontSize: 15,
+              outline: "none",
+            }}
+          />
+          <button
+            onClick={sendDraft}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+              background: currentConv.channelAccent,
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+              boxShadow: "0 6px 16px rgba(0,0,0,0.35)",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24">
+              <polygon points="6,4 20,12 6,20" fill="#fff" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── MAIN APP (TABS) ──────────────────────────────────────────────────────────
+  return (
+    <div style={{ ...bg, display: "flex", flexDirection: "column" }}>
+      {/* Tab content */}
+      <div style={{ flex: 1, overflow: "auto", paddingBottom: 106 }} className="no-scrollbar">
+
+        {/* ── INBOX TAB ── */}
+        {tab === "inbox" && (
+          <>
+            <div style={{ padding: "54px 20px 6px" }}>
+              <div style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 800, fontSize: 30, color: "#F5F6F8" }}>
+                Inbox
+              </div>
+              <div style={{ fontSize: 14, color: "rgba(235,235,245,0.5)", marginTop: 2 }}>
+                {totalUnread} unread across all channels
+              </div>
             </div>
 
-            <div className="mt-4 grid gap-2">
-              {billingPlans.map((plan) => (
+            <div style={{ padding: "10px 20px" }}>
+              <input
+                type="text"
+                placeholder="Search conversations"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "#141922",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 20,
+                  padding: "12px 14px",
+                  color: "#F5F6F8",
+                  fontSize: 15,
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 8, padding: "2px 20px 16px", overflowX: "auto" }} className="no-scrollbar">
+              {filterChips.map((chip) => (
                 <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => void purchasePlan(plan.id)}
-                  disabled={billingBusyPlan !== null || (isBillingAvailable && plan.available === false)}
-                  className="flex min-h-[68px] w-full items-center justify-between gap-3 rounded-2xl border border-[var(--border-strong)] bg-[var(--card)] px-4 py-3 text-left transition active:scale-[0.99] disabled:opacity-45"
+                  key={chip.key}
+                  onClick={() => setChannelFilter(chip.key)}
+                  style={{
+                    flexShrink: 0,
+                    padding: "8px 16px",
+                    borderRadius: 100,
+                    background: chip.bg,
+                    border: `1px solid ${chip.border}`,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    color: chip.color,
+                    whiteSpace: "nowrap",
+                  }}
                 >
-                  <span className="min-w-0">
-                    <span className="block text-[16px] font-black text-[var(--ink-primary)]">
-                      {plan.label}
-                    </span>
-                    <span className="mt-1 block text-[12px] font-bold text-[var(--ink-muted)]">
-                      {plan.saving}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-right">
-                    <span className="block text-[18px] font-black text-[var(--ink-primary)]">
-                      {billingBusyPlan === plan.id ? "..." : plan.price}
-                    </span>
-                    <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                      {plan.available === false ? "hazir degil" : "satin al"}
-                    </span>
-                  </span>
+                  {chip.label}
                 </button>
               ))}
             </div>
 
-            {billingMessage ? (
-              <p className="mt-3 rounded-2xl bg-[var(--subtle)] px-3 py-2 text-[12px] font-semibold leading-5 text-[var(--ink-secondary)]">
-                {billingMessage}
-              </p>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => void restorePurchases()}
-              disabled={billingBusyPlan !== null}
-              className="mt-3 flex h-11 w-full items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-transparent text-[13px] font-black text-[var(--ink-primary)] transition active:scale-[0.98] disabled:opacity-45"
-            >
-              {billingBusyPlan === "restore" ? "Kontrol ediliyor..." : "Satin almayi geri yukle"}
-            </button>
-          </div>
-        </section>
-      ) : null}
-      <section className="paper-grain mx-auto flex min-h-screen w-full max-w-[390px] flex-col overflow-hidden sm:max-w-[430px]">
-        <header className="sticky top-0 z-10  border-b border-[var(--border-soft)] bg-[var(--background)] px-4 pb-3 pt-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-
-              <h1 className="text-[22px] font-black leading-7 tracking-[-0.04em] text-[var(--ink-primary)]">
-                Gelen mesajlar
-              </h1>
-              <p className="mono mt-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-secondary)]">
-                {todayStamp}
-              </p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="flex h-11 min-w-11 items-center justify-center rounded-2xl bg-[var(--accent-bg)] px-3 text-[18px] font-black text-[var(--accent-fg)]">
-                <span className="mono">
-                  {visibleMessages.length === 0 ? "0" : visibleMessages.length}
-                </span>
+            {inboxList.length === 0 && (
+              <div style={{ padding: "60px 32px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                <div style={{ fontSize: 40, opacity: 0.3 }}>📭</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "rgba(235,235,245,0.5)" }}>
+                  {searchQuery || channelFilter !== "all" ? "No conversations found" : "No messages yet"}
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(235,235,245,0.3)", lineHeight: 1.5 }}>
+                  {searchQuery || channelFilter !== "all"
+                    ? "Try a different filter or search term"
+                    : "Messages from WhatsApp, Instagram and Facebook will appear here"}
+                </div>
               </div>
-              <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-                mesaj
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => setIsChannelPanelOpen((current) => !current)}
-              className={`flex h-11 items-center justify-center gap-2 rounded-2xl border px-2 text-center text-[12px] font-bold transition active:scale-[0.98] ${
-                isChannelPanelOpen
-                  ? "border-[var(--accent-bg)] bg-[var(--accent-bg)] text-[var(--accent-fg)]"
-                  : "border-[var(--border-strong)] bg-[var(--card)] text-[var(--ink-primary)]"
-              }`}
-              aria-expanded={isChannelPanelOpen}
-              aria-label="KanallarÄ± ayarla"
-            >
-              <span
-                className={`inline-block h-1.5 w-1.5 rounded-full ${
-                  isChannelPanelOpen ? "bg-[var(--accent-fg)]" : "bg-[var(--accent-bg)]"
-                }`}
-              />
-              KanallarÄ± ayarla
-            </button>
-            <button
-              type="button"
-              onClick={() => void clearScreen()}
-              className="flex h-11 items-center justify-center rounded-2xl  bg-[var(--card)] px-2 text-center text-[12px] font-bold leading-none text-[var(--ink-primary)] transition active:scale-[0.98]"
-              aria-label="EkranÄ± tertemiz yap"
-            >
-              EkranÄ± tertemiz yap
-            </button>
-          </div>
-            <button
-              type="button"
-              onClick={() => setIsBillingSheetOpen(true)}
-              className={`flex h-11 items-center justify-center rounded-2xl px-2 text-center text-[12px] font-bold leading-none transition active:scale-[0.98] ${
-                isSubscriptionActive
-                  ? "bg-emerald-500 text-black"
-                  : "bg-[var(--accent-bg)] text-[var(--accent-fg)]"
-              }`}
-              aria-label="Abonelik planlari"
-            >
-              {isSubscriptionActive ? "Pro aktif" : "Pro"}
-            </button>
-
-          <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
-            <button
-              type="button"
-              onClick={() => setSelectedChannelPackage("all")}
-              className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border py-1.5 pl-2 pr-3 text-[12px] font-bold transition active:scale-[0.98] ${
-                selectedChannelPackage === "all"
-                  ? "border-[var(--accent-bg)] bg-[var(--accent-bg)] text-[var(--accent-fg)]"
-                  : "border-[var(--border-strong)] bg-[var(--card)] text-[var(--ink-secondary)]"
-              }`}
-              aria-pressed={effectiveSelectedChannelPackage === "all"}
-            >
-              <span
-                className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-black tabular-nums ${
-                  effectiveSelectedChannelPackage === "all"
-                    ? "bg-[var(--accent-fg)] text-[var(--accent-bg)]"
-                    : "bg-[var(--accent-bg)] text-[var(--accent-fg)]"
-                }`}
-              >
-                {sortedMessages.length}
-              </span>
-              TÃ¼m mesajlar
-            </button>
-            {enabledChannels.length === 0 ? (
-              <span className="inline-flex h-9 items-center rounded-full  bg-[var(--card)] px-3 text-xs font-semibold text-[var(--ink-muted)]">
-                Kanal kapalÄ±
-              </span>
-            ) : (
-              enabledChannels.map((channel) => {
-                const theme = sourceThemeFor(channel.sourceApp);
-                const icon = brandIconFor(channel.sourceApp, channel.packageName);
-                const isSelected =
-                  effectiveSelectedChannelPackage === channel.packageName;
-
-                return (
-                  <button
-                    key={channel.packageName}
-                    type="button"
-                    onClick={() => setSelectedChannelPackage(channel.packageName)}
-                    className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3 text-[12px] font-bold transition active:scale-[0.98] ${
-                      isSelected
-                        ? (theme.label !== "DG" ? `${theme.borderClass} ${theme.accentClass} text-white` : "text-[var(--accent-fg)]")
-                        : "border-[var(--border-strong)] bg-[var(--card)] text-[var(--ink-secondary)]"
-                    }`}
-                    style={
-                      isSelected && theme.label === "DG"
-                        ? {
-                            backgroundColor: dominantColors[channel.packageName] || "var(--accent-bg)",
-                            borderColor: dominantColors[channel.packageName] || "var(--accent-bg)",
-                          }
-                        : {}
-                    }
-                    aria-pressed={isSelected}
-                  >
-                    <span
-                      className={`flex h-6 min-w-6 items-center justify-center rounded-full text-[9px] font-black tracking-[0.08em] ${
-                        channel.iconBase64 ? "bg-[var(--card)]/10 text-white" : theme.badgeClass
-                      }`}
-                    >
-                      {channel.iconBase64 ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={`data:image/png;base64,${channel.iconBase64}`}
-                          alt=""
-                          className="h-4 w-4 rounded object-contain"
-                        />
-                      ) : (
-                        <BrandIcon
-                          className="h-3.5 w-3.5"
-                          icon={icon}
-                          label={theme.label}
-                        />
-                      )}
-                    </span>
-                    {channel.label}
-                  </button>
-                );
-              })
             )}
-          </div>
 
-          <p className="mt-2.5 text-[13px] font-semibold text-[var(--ink-muted)]">
-            {messages.length === 0
-              ? "Mesaj bildirimi bekleniyor."
-              : selectedChannel
-                ? `${selectedChannel.label}: ${visibleMessages.length} mesaj gÃ¶rÃ¼nÃ¼yor.`
-                : `${sortedMessages.length} mesaj yakalandÄ±, ${enabledChannelCount} kanal aÃ§Ä±k.`}
-          </p>
-        </header>
-
-        <section className="mx-4 mt-4 rounded-2xl border border-[var(--border-strong)] bg-[var(--card)] px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[14px] font-black text-[var(--ink-primary)]">
-                {isSubscriptionActive ? "TekPanel Pro aktif" : "TekPanel Pro"}
-              </p>
-              <p className="mt-1 text-[12px] font-semibold leading-5 text-[var(--ink-muted)]">
-                {isSubscriptionActive
-                  ? "Aboneligin aktif, mesaj kutusu kullanima hazir."
-                  : "Google Play aboneligi ile kullanima acilir."}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsBillingSheetOpen(true)}
-              className="flex h-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-bg)] px-4 text-[13px] font-black text-[var(--accent-fg)] transition active:scale-[0.98]"
-            >
-              {isSubscriptionActive ? "Yonet" : "Plan sec"}
-            </button>
-          </div>
-          {billingMessage ? (
-            <p className="mt-2 text-[12px] font-semibold leading-5 text-[var(--ink-secondary)]">
-              {billingMessage}
-            </p>
-          ) : null}
-        </section>
-
-        {showAccessGate ? (
-          <section className="mx-4 mt-4 rounded-2xl border border-[var(--border-strong)] bg-[var(--card)] px-4 pb-5 pt-4">
-            <h2 className="text-[14px] font-black text-[var(--ink-primary)]">
-              MesajlarÄ±n buraya dÃ¼ÅŸmesi iÃ§in
-            </h2>
-            <p className="mt-1 text-[13px] leading-5 text-[var(--ink-secondary)]">
-              Bildirim eriÅŸimini aÃ§man gerekiyor. Ä°stersen ÅŸimdi aÃ§, istersen uygulamayÄ± gezip sonra aÃ§.
-            </p>
-            <button
-              type="button"
-              onClick={() => void openNotificationAccess()}
-              className="mt-5 flex h-11 w-full items-center justify-center rounded-xl bg-[var(--accent-bg)] text-[14px] font-black text-[var(--accent-fg)] transition active:scale-[0.98]"
-            >
-              Bildirim eriÅŸimini aÃ§
-            </button>
-          </section>
-        ) : null}
-
-        {isChannelPanelOpen ? (
-          <section className="ledger-panel-in mx-4 mt-3 overflow-hidden rounded-3xl bg-[var(--card)] border border-[var(--border-strong)] shadow-none">
-            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-soft)] px-4 py-3">
-              <h2 className="text-[17px] font-black tracking-[-0.03em] text-[var(--ink-primary)]">
-                Kanallar
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsChannelPanelOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--subtle)] text-[18px] font-black leading-none text-[var(--ink-primary)] transition active:scale-[0.95]"
-                aria-label="Kapat"
-              >
-                Ã—
-              </button>
-            </div>
-
-            {channels.length === 0 ? (
-              <p className="px-4 py-4 text-[14px] leading-6 text-[var(--ink-secondary)]">
-                Bu telefonda mesaj kanalÄ± bulunamadÄ±.
-              </p>
-            ) : (
-              <div>
+            <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {inboxList.map((item) => (
                 <button
-                  type="button"
-                  onClick={() => void toggleAllChannels()}
-                  className="flex min-h-[52px] w-full items-center justify-between gap-3 border-b border-[var(--border-soft)] bg-[var(--subtle)] px-4 py-3 text-left transition active:scale-[0.99]"
-                  aria-label="TÃ¼mÃ¼nÃ¼ seÃ§"
-                  aria-pressed={areAllChannelsEnabled}
+                  key={item.id}
+                  onClick={() => openConversation(item.id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: 14,
+                    background: "#141922",
+                    border: "1px solid rgba(255,255,255,0.05)",
+                    borderRadius: 22,
+                    cursor: "pointer",
+                    boxShadow: "0 6px 16px rgba(0,0,0,0.22)",
+                    textAlign: "left",
+                    width: "100%",
+                  }}
                 >
-                  <span className="text-[14px] font-black text-[var(--ink-primary)]">
-                    TÃ¼mÃ¼
-                  </span>
-                  <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 text-[15px] font-black leading-none transition ${
-                      areAllChannelsEnabled
-                        ? "border-[var(--accent-bg)] bg-[var(--accent-bg)] text-[var(--accent-fg)]"
-                        : "border-[var(--border-strong)] bg-transparent text-transparent"
-                    }`}
+                  <div
+                    style={{
+                      width: 46,
+                      height: 46,
+                      borderRadius: "50%",
+                      background: item.avatarBg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
                   >
-                    âœ“
-                  </span>
-                </button>
-
-                {channels.map((channel) => {
-                  const theme = sourceThemeFor(channel.sourceApp);
-
-                  return (
-                    <button
-                      key={channel.packageName}
-                      type="button"
-                      onClick={() => toggleChannel(channel.packageName)}
-                      className="flex min-h-[56px] w-full items-center justify-between gap-3 border-b border-[var(--border-soft)] bg-[var(--card)] px-4 py-3 text-left transition active:bg-[var(--subtle)]"
-                      aria-pressed={channel.enabled}
-                    >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <span
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[10px] font-black tracking-[0.12em] ${
-                            channel.iconBase64 ? "bg-[var(--card)]/10 text-white" : theme.badgeClass
-                          }`}
-                        >
-                          {channel.iconBase64 ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={`data:image/png;base64,${channel.iconBase64}`}
-                              alt=""
-                              className="h-6 w-6 rounded-md object-contain"
-                            />
-                          ) : (
-                            <BrandIcon
-                              className="h-5 w-5"
-                              icon={brandIconFor(channel.sourceApp, channel.packageName)}
-                              label={theme.label}
-                            />
-                          )}
-                        </span>
-                        <span className="block truncate text-[15px] font-bold text-[var(--ink-primary)]">
-                          {channel.label}
-                        </span>
-                      </span>
-                      <span
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 text-[15px] font-black leading-none transition ${
-                          channel.enabled
-                            ? "border-[var(--accent-bg)] bg-[var(--accent-bg)] text-[var(--accent-fg)]"
-                            : "border-[var(--border-strong)] bg-transparent text-transparent"
-                        }`}
-                      >
-                        âœ“
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {isNative && !isNotificationAccessEnabled ? (
-              <button
-                type="button"
-                onClick={() => void openNotificationAccess()}
-                className="block w-full bg-[var(--accent-bg)] px-4 py-4 text-left transition active:scale-[0.99]"
-              >
-                <span className="block text-[15px] font-black text-[var(--accent-fg)]">
-                  Bu ayarÄ± aÃ§man gerekiyor
-                </span>
-                <span className="mt-1 block text-[13px] leading-5 text-[var(--accent-fg)]/80">
-                  Dokun, aÃ§Ä±lan listede bu uygulamaya bildirim eriÅŸimi ver.
-                </span>
-              </button>
-            ) : null}
-          </section>
-        ) : null}
-
-        {visibleMessages.length === 0 ? (
-          <div className="flex flex-1 px-4 py-4">
-            <section className="h-fit w-full overflow-hidden rounded-3xl  bg-[var(--card)]">
-              <div className="flex items-center justify-between border-b border-[var(--border-soft)] bg-[var(--subtle)] px-4 py-2">
-                  <span className="mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-secondary)]">
-                  KayÄ±t defteri
-                </span>
-                  <span className="mono text-[10px] tabular-nums tracking-[0.12em] text-[var(--ink-secondary)]">
-                  00 kayÄ±t
-                </span>
-              </div>
-              <div className="px-4 py-5">
-                <p className="text-[16px] font-black tracking-[-0.025em] text-[var(--ink-primary)]">
-                  {messages.length === 0 ? "Bildirim bekleniyor" : "Bu kanalda mesaj yok"}
-                </p>
-                <p className="mt-1.5 text-sm leading-6 text-[var(--ink-muted)]">
-                  {messages.length === 0
-                    ? "WhatsApp, Instagram veya SMS bildirimi gelince burada gÃ¶rÃ¼necek."
-                    : "TÃ¼m mesajlarÄ± gÃ¶rmek iÃ§in Ã¼stten TÃ¼m mesajlar'a dokun."}
-                </p>
-                <p className="mono mt-4 text-[11px] tracking-[0.04em] text-[var(--ink-secondary)]">
-                  {messages.length === 0
-                    ? "// ekran temiz."
-                    : `// ${sortedMessages.length} toplam mesaj var.`}
-                </p>
-              </div>
-            </section>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto px-4 py-4">
-            <div className="overflow-hidden rounded-3xl  bg-[var(--card)]">
-              <div className="flex items-center justify-between border-b border-[var(--border-soft)] bg-[var(--subtle)] px-4 py-2">
-                <span className="mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-secondary)]">
-                  KayÄ±t defteri
-                </span>
-                <span className="mono text-[10px] tabular-nums tracking-[0.12em] text-[var(--ink-secondary)]">
-                  {String(visibleMessages.length).padStart(2, "0")} kayÄ±t
-                </span>
-              </div>
-              {visibleMessages.map((message, index) => {
-                const theme = sourceThemeFor(message.sourceApp);
-                const icon = brandIconFor(message.sourceApp, message.sourcePackage);
-                const messageChannel = channels.find((channel) => channel.packageName === message.sourcePackage);
-
-                return (
-                  <article
-                    key={message.id}
-                    className="ledger-row-in relative flex gap-0 border-t border-[var(--border-soft)]"
-                  >
-                    {/* Platform accent rail â€” the ledger signature */}
-                    <span
-                      className={`w-[3px] shrink-0 ${theme.accentClass}`}
-                      aria-hidden="true"
+                    <div
+                      style={{
+                        width: 22,
+                        height: 22,
+                        background: "#fff",
+                        maskImage: item.iconMask,
+                        WebkitMaskImage: item.iconMask,
+                        maskSize: "contain",
+                        WebkitMaskSize: "contain",
+                        maskRepeat: "no-repeat",
+                        WebkitMaskRepeat: "no-repeat",
+                        maskPosition: "center",
+                        WebkitMaskPosition: "center",
+                      }}
                     />
-
-                    <div className="flex min-w-0 flex-1 items-start gap-3 px-3.5 py-3.5">
-                      <div className="flex shrink-0 flex-col items-center gap-1.5">
-                        <div
-                          className={`flex h-11 w-11 items-center justify-center rounded-2xl text-[10px] font-black tracking-[0.12em] ${
-                            messageChannel?.iconBase64 ? "bg-[var(--card)]/10 text-white" : theme.badgeClass
-                          }`}
-                          aria-hidden="true"
-                        >
-                          {messageChannel?.iconBase64 ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={`data:image/png;base64,${messageChannel.iconBase64}`}
-                              alt=""
-                              className="h-7 w-7 rounded-md object-contain"
-                            />
-                          ) : (
-                            <BrandIcon
-                              className="h-[22px] w-[22px]"
-                              icon={icon}
-                              label={theme.label}
-                            />
-                          )}
-                        </div>
-                        <span className="mono text-[9px] tabular-nums tracking-[0.1em] text-[var(--ink-faint)]">
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h2 className="truncate text-[16px] font-black leading-5 tracking-[-0.025em] text-[var(--ink-primary)]">
-                              {message.senderName}
-                            </h2>
-                            <div className="mt-1.5 flex min-w-0 items-center gap-2">
-                              <span
-                                className={`inline-flex shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] ring-1 ${theme.chipClass}`}
-                              >
-                                {sourceDisplayLabel(message.sourceApp)}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex shrink-0 flex-col items-end gap-2">
-                            <time className="mono block text-[10px] tabular-nums tracking-[0.04em] text-[var(--ink-faint)]">
-                              {formatDateTime(message.receivedAt)}
-                            </time>
-                            <button
-                              type="button"
-                              onClick={() => markAsRead(message.id)}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-full  bg-[var(--subtle)] px-3 text-[11px] font-bold leading-none text-[var(--ink-primary)] transition active:scale-[0.95]"
-                              aria-label={`${message.senderName} mesajÄ±nÄ± okundu olarak iÅŸaretle`}
-                              title="Okundu"
-                            >
-                              <span className="text-[12px] leading-none">âœ“</span>
-                              Okundu
-                            </button>
-                          </div>
-                        </div>
-
-                        <p className="mt-2 whitespace-pre-wrap break-words text-[14px] leading-[1.5] text-[var(--ink-secondary)]">
-                          {message.messageText}
-                        </p>
-                      </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ fontWeight: 700, fontSize: 15.5, color: "#F5F6F8" }}>{item.name}</span>
+                      <span style={{ fontSize: 12, color: "rgba(235,235,245,0.4)", flexShrink: 0 }}>{item.time}</span>
                     </div>
-                  </article>
-                );
-              })}
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 2 }}>
+                      <span
+                        style={{
+                          fontSize: 13.5,
+                          color: "rgba(235,235,245,0.55)",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {item.lastMessageText}
+                      </span>
+                      {item.unread > 0 && (
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            minWidth: 18,
+                            height: 18,
+                            padding: "0 5px",
+                            borderRadius: 14,
+                            background: item.channelAccent,
+                            color: "#fff",
+                            fontWeight: 700,
+                            fontSize: 11,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {item.unread}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
-          </div>
+          </>
         )}
-      </section>
-    </main>
+
+        {/* ── DASHBOARD TAB ── */}
+        {tab === "dashboard" && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "54px 20px 4px" }}>
+              <div style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 800, fontSize: 26, color: "#F5F6F8" }}>
+                Dashboard
+              </div>
+            </div>
+            <div style={{ padding: "0 20px 18px", fontSize: 14, color: "rgba(235,235,245,0.5)" }}>
+              Today's overview
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display: "flex", gap: 10, padding: "0 20px 18px" }}>
+              {[
+                { val: totalUnread, color: "#E1306C", label: "New messages" },
+                { val: openCount, color: "#25D366", label: "Open replies" },
+                { val: channelsConnectedCount, color: "#1877F2", label: "Channels" },
+              ].map((stat, i) => (
+                <div
+                  key={i}
+                  style={{
+                    flex: 1,
+                    background: "#141922",
+                    border: "1px solid rgba(255,255,255,0.05)",
+                    borderRadius: 22,
+                    padding: "14px 10px",
+                    textAlign: "center",
+                    boxShadow: "0 6px 16px rgba(0,0,0,0.22)",
+                  }}
+                >
+                  <div style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 800, fontSize: 22, color: stat.color }}>
+                    {stat.val}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(235,235,245,0.5)", marginTop: 2 }}>{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* Priority */}
+              <DashSection
+                icon={<span style={{ fontFamily: "'Quicksand',sans-serif", fontWeight: 800, fontSize: 15, color: "#E1306C" }}>!</span>}
+                iconBg="rgba(225,48,108,0.18)"
+                title="Priority"
+                subtitle="Urgent and important messages"
+                count={priorityList.length}
+                countColor="#E1306C"
+                isOpen={expandedSection === "priority"}
+                onToggle={() => toggleSection("priority")}
+              >
+                {priorityList.map((item) => (
+                  <DashItem key={item.id} item={item} onClick={() => openConversation(item.id)} />
+                ))}
+              </DashSection>
+
+              {/* Unread */}
+              <DashSection
+                icon={<div style={{ width: 9, height: 9, borderRadius: "50%", background: "#25D366" }} />}
+                iconBg="rgba(37,211,102,0.18)"
+                title="Unread"
+                subtitle="All unread messages"
+                count={unreadList.length}
+                countColor="#25D366"
+                isOpen={expandedSection === "unread"}
+                onToggle={() => toggleSection("unread")}
+              >
+                {unreadList.map((item) => (
+                  <DashItem key={item.id} item={item} onClick={() => openConversation(item.id)} />
+                ))}
+              </DashSection>
+
+              {/* Social */}
+              <DashSection
+                icon={<div style={{ width: 9, height: 9, borderRadius: "50%", background: "#1877F2" }} />}
+                iconBg="rgba(24,119,242,0.18)"
+                title="Social"
+                subtitle="Social media messages"
+                count={socialList.length}
+                countColor="#1877F2"
+                isOpen={expandedSection === "social"}
+                onToggle={() => toggleSection("social")}
+              >
+                {socialList.map((item) => (
+                  <DashItem key={item.id} item={item} onClick={() => openConversation(item.id)} />
+                ))}
+              </DashSection>
+
+              {/* Archive */}
+              <DashSection
+                icon={
+                  <div style={{ width: 16, height: 11, border: "1.5px solid rgba(235,235,245,0.5)", borderRadius: 2 }} />
+                }
+                iconBg="rgba(255,255,255,0.06)"
+                title="Archive"
+                subtitle="Archived conversations"
+                count={12}
+                countColor="rgba(235,235,245,0.5)"
+                isOpen={expandedSection === "archive"}
+                onToggle={() => toggleSection("archive")}
+              >
+                <div style={{ padding: "0 16px 16px", fontSize: 13, color: "rgba(235,235,245,0.5)", lineHeight: 1.5 }}>
+                  Archived conversations are hidden from your inbox but stay fully searchable anytime.
+                </div>
+              </DashSection>
+            </div>
+          </>
+        )}
+
+        {/* ── CHANNELS TAB ── */}
+        {tab === "channels" && (
+          <>
+            <div style={{ padding: "54px 20px 4px" }}>
+              <div style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 800, fontSize: 30, color: "#F5F6F8" }}>
+                Channels
+              </div>
+            </div>
+            <div style={{ padding: "0 20px 18px", fontSize: 14, color: "rgba(235,235,245,0.5)" }}>
+              Manage your connected accounts
+            </div>
+
+            <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {channelsList.map((ch) => (
+                <div
+                  key={ch.key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: 14,
+                    background: "#141922",
+                    border: "1px solid rgba(255,255,255,0.05)",
+                    borderRadius: 22,
+                    boxShadow: "0 6px 16px rgba(0,0,0,0.22)",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+                      background: ch.avatarBg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 21,
+                        height: 21,
+                        background: "#fff",
+                        maskImage: ch.iconMask,
+                        WebkitMaskImage: ch.iconMask,
+                        maskSize: "contain",
+                        WebkitMaskSize: "contain",
+                        maskRepeat: "no-repeat",
+                        WebkitMaskRepeat: "no-repeat",
+                        maskPosition: "center",
+                        WebkitMaskPosition: "center",
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15.5, color: "#F5F6F8" }}>{ch.label}</div>
+                    <div style={{ fontSize: 12.5, color: "rgba(235,235,245,0.45)" }}>{ch.desc}</div>
+                  </div>
+                  <button
+                    onClick={() => toggleChannel(ch.key as Channel)}
+                    style={{
+                      width: 46,
+                      height: 28,
+                      borderRadius: 20,
+                      background: ch.trackBg,
+                      position: "relative",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      border: "none",
+                      transition: "background 0.2s ease",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        background: "#F5F6F8",
+                        position: "absolute",
+                        top: 3,
+                        transform: ch.knobX,
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                        transition: "transform 0.2s cubic-bezier(0.34,1.56,0.64,1)",
+                      }}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: "16px 20px 0" }}>
+              <button
+                onClick={() => showToast("More channels coming soon")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: 14,
+                  borderRadius: 22,
+                  border: "1.5px dashed rgba(235,235,245,0.2)",
+                  background: "none",
+                  cursor: "pointer",
+                  width: "100%",
+                }}
+              >
+                <span style={{ fontFamily: "'Quicksand',sans-serif", fontWeight: 700, fontSize: 16, color: "rgba(235,235,245,0.6)" }}>+</span>
+                <span style={{ fontWeight: 600, fontSize: 14, color: "rgba(235,235,245,0.6)" }}>Add another channel</span>
+              </button>
+            </div>
+
+            <div
+              style={{
+                margin: "20px 20px 0",
+                padding: "14px 16px",
+                background: "#141922",
+                border: "1px solid rgba(255,255,255,0.05)",
+                borderRadius: 22,
+                display: "flex",
+                gap: 12,
+                alignItems: "flex-start",
+                boxShadow: "0 6px 16px rgba(0,0,0,0.22)",
+              }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 14,
+                  background: "rgba(37,211,102,0.18)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24">
+                  <path d="M5 12l5 5L20 7" stroke="#25D366" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#F5F6F8", marginBottom: 2 }}>Your data is secure</div>
+                <div style={{ fontSize: 12.5, color: "rgba(235,235,245,0.45)", lineHeight: 1.4 }}>
+                  We use industry-standard encryption to keep your data safe and private.
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 106,
+            left: "50%",
+            transform: "translateX(-50%)",
+            padding: "10px 18px",
+            background: "rgba(30,32,38,0.95)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 100,
+            animation: "sp-fade-in 0.2s ease both",
+          }}
+        >
+          <span style={{ fontSize: 13, color: "#F5F6F8", whiteSpace: "nowrap" }}>{toast}</span>
+        </div>
+      )}
+
+      {/* Bottom Tab Bar */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          display: "flex",
+          padding: "10px 12px 30px",
+          background: "rgba(12,15,20,0.92)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        <TabBtn
+          onClick={() => goToTab("inbox")}
+          color={inboxTabColor}
+          label="Inbox"
+          icon={
+            <svg width="22" height="22" viewBox="0 0 22 22">
+              <rect x="2" y="4" width="18" height="14" rx="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M2 6l9 6 9-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          }
+        />
+        <TabBtn
+          onClick={() => goToTab("dashboard")}
+          color={dashboardTabColor}
+          label="Dashboard"
+          icon={
+            <svg width="22" height="22" viewBox="0 0 22 22">
+              <rect x="2" y="2" width="8" height="8" rx="2" fill="currentColor" />
+              <rect x="12" y="2" width="8" height="8" rx="2" fill="currentColor" opacity="0.5" />
+              <rect x="2" y="12" width="8" height="8" rx="2" fill="currentColor" opacity="0.5" />
+              <rect x="12" y="12" width="8" height="8" rx="2" fill="currentColor" />
+            </svg>
+          }
+        />
+        <TabBtn
+          onClick={() => goToTab("channels")}
+          color={channelsTabColor}
+          label="Channels"
+          icon={
+            <svg width="22" height="22" viewBox="0 0 22 22">
+              <circle cx="7" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <circle cx="15" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <circle cx="11" cy="15" r="5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            </svg>
+          }
+        />
+      </div>
+    </div>
   );
 }
+
+function TabBtn({
+  onClick,
+  color,
+  label,
+  icon,
+}: {
+  onClick: () => void;
+  color: string;
+  label: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+        cursor: "pointer",
+        color,
+        background: "none",
+        border: "none",
+        padding: 0,
+        transition: "color 0.15s ease",
+      }}
+    >
+      {icon}
+      <span style={{ fontWeight: 600, fontSize: 11 }}>{label}</span>
+    </button>
+  );
+}
+
+function DashSection({
+  icon,
+  iconBg,
+  title,
+  subtitle,
+  count,
+  countColor,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  title: string;
+  subtitle: string;
+  count: number;
+  countColor: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        background: "#141922",
+        border: "1px solid rgba(255,255,255,0.05)",
+        borderRadius: 26,
+        overflow: "hidden",
+        boxShadow: "0 6px 16px rgba(0,0,0,0.22)",
+      }}
+    >
+      <button
+        onClick={onToggle}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: 16,
+          cursor: "pointer",
+          width: "100%",
+          background: "none",
+          border: "none",
+          textAlign: "left",
+        }}
+      >
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 16,
+            background: iconBg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#F5F6F8" }}>{title}</div>
+          <div style={{ fontSize: 12, color: "rgba(235,235,245,0.45)" }}>{subtitle}</div>
+        </div>
+        <span style={{ fontWeight: 700, fontSize: 13, color: countColor, marginRight: 6 }}>{count}</span>
+        <svg
+          width="8"
+          height="14"
+          viewBox="0 0 8 14"
+          style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s ease", flexShrink: 0 }}
+        >
+          <path d="M1 1l6 6-6 6" stroke="rgba(235,235,245,0.4)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {isOpen && <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "0 12px 12px" }}>{children}</div>}
+    </div>
+  );
+}
+
+type EnrichedConv = Conversation & {
+  channelLabel: string;
+  channelAccent: string;
+  avatarBg: string;
+  iconMask: string;
+  statusColor: string;
+  lastMessageText: string;
+};
+
+function DashItem({
+  item,
+  onClick,
+}: {
+  item: EnrichedConv;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: 10,
+        background: "rgba(255,255,255,0.03)",
+        borderRadius: 18,
+        cursor: "pointer",
+        border: "none",
+        width: "100%",
+        textAlign: "left",
+      }}
+    >
+      <div
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: "50%",
+          background: item.avatarBg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            width: 16,
+            height: 16,
+            background: "#fff",
+            maskImage: item.iconMask,
+            WebkitMaskImage: item.iconMask,
+            maskSize: "contain",
+            WebkitMaskSize: "contain",
+            maskRepeat: "no-repeat",
+            WebkitMaskRepeat: "no-repeat",
+            maskPosition: "center",
+            WebkitMaskPosition: "center",
+          }}
+        />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, color: "#F5F6F8" }}>{item.name}</div>
+        <div
+          style={{
+            fontSize: 12,
+            color: "rgba(235,235,245,0.5)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {item.lastMessageText}
+        </div>
+      </div>
+      <span style={{ fontSize: 11, color: "rgba(235,235,245,0.4)", flexShrink: 0 }}>{item.time}</span>
+    </button>
+  );
+}
+
