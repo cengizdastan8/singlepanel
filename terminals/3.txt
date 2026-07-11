@@ -1,0 +1,137 @@
+---
+pid: 22084
+cwd: "C:\Users\Mel\cereb\tekpanel"
+command: "cd \"C:\\Users\\Mel\\cereb\\orr\"; npm run test:web"
+started_at: 2026-06-29T19:25:50.773Z
+running_for_ms: 1810003  
+---
+
+> orr@0.1.0 test:web
+> npm run build && node scripts/web-smoke.mjs
+
+
+> orr@0.1.0 build
+> next build
+
+▲ Next.js 16.3.0-canary.46 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 8.3s
+  Running TypeScript ...
+  Finished TypeScript in 6.3s ...
+  Collecting page data using 5 workers ...
+  Generating static pages using 5 workers (0/4) ...
+  Generating static pages using 5 workers (1/4) 
+  Generating static pages using 5 workers (2/4) 
+  Generating static pages using 5 workers (3/4) 
+✓ Generating static pages using 5 workers (4/4) in 1362ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+└ ○ /_not-found
+
+
+○  (Static)  prerendered as static content
+
+{
+  "afterClear": {
+    "storedCount": 0,
+    "hasTitle": true,
+    "hasEmptyCopy": true,
+    "buttonCount": 10,
+    "hasNoInputs": true,
+    "hasNoOverflow": true
+  },
+  "afterRead": {
+    "storedCount": 2,
+    "hasCount": true,
+    "hasCem": false,
+    "buttonCount": 12,
+    "hasNoInputs": true,
+    "hasNoOverflow": true
+  },
+  "allFilter": {
+    "hasCount": true,
+    "hasCem": true,
+    "hasDerya": true,
+    "hasMurat": true,
+    "hasNoOverflow": true
+  },
+  "channelPanel": {
+    "hasTitle": true,
+    "hasWhatsapp": true,
+    "hasBusiness": true,
+    "hasOpenLabel": true,
+    "hasEnableAllButton": true,
+    "buttonCount": 28,
+    "hasNoInputs": true,
+    "hasNoOverflow": true
+  },
+  "channelToggle": {
+    "storedChannels": [
+      "com.whatsapp",
+      "com.instagram.android",
+      "com.zhiliaoapp.musically",
+      "com.twitter.android",
+      "com.facebook.orca",
+      "com.google.android.apps.messaging"
+    ],
+    "hasClosedLabel": true,
+    "hasNoInputs": true,
+    "hasNoOverflow": true
+  },
+  "corruptedStorageFallback": {
+    "hasTitle": true,
+    "hasEmptyCopy": true,
+    "storedCount": 0,
+    "buttonCount": 10,
+    "hasNoInputs": true,
+    "hasNoOverflow": true
+  },
+  "enableAllChannels": {
+    "storedChannels": [
+      "com.whatsapp",
+      "com.whatsapp.w4b",
+      "com.instagram.android",
+      "com.zhiliaoapp.musically",
+      "com.twitter.android",
+      "com.facebook.orca",
+      "com.google.android.apps.messaging"
+    ],
+    "hasNoClosedLabel": true,
+    "hasNoInputs": true,
+    "hasNoOverflow": true
+  },
+  "initial": {
+    "hasTitle": true,
+    "hasEmptyCopy": true,
+    "buttonCount": 10,
+    "hasChannelButton": true,
+    "hasAllMessagesFilter": true,
+    "hasNoInputs": true,
+    "hasNoOverflow": true,
+    "title": "Orr"
+  },
+  "instagramFilter": {
+    "hasInstagramCopy": true,
+    "hasDerya": true,
+    "hasNoCem": true,
+    "hasNoMurat": true,
+    "hasNoOverflow": true
+  },
+  "seeded": {
+    "storedCount": 3,
+    "hasCount": true,
+    "hasCem": true,
+    "hasDerya": true,
+    "hasMurat": true,
+    "hasNoCaptureLabels": true,
+    "buttonCount": 13,
+    "hasOkunduButton": true,
+    "hasAllMessagesFilter": true,
+    "hasNoPackageText": true,
+    "hasNoInputs": true,
+    "hasNoOverflow": true
+  }
+}

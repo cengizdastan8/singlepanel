@@ -1,0 +1,284 @@
+YOUTUBE VIDEO TRANSKRIPT OZETLERI VE ACIKLAMA LINKLERI
+Olusturma tarihi: 2026-06-27
+Not: Tam YouTube transkriptleri ve aciklama metinleri telif nedeniyle birebir/eksiksiz kopyalanmadi. Her video icin transkript ozeti ve aciklama kismindaki linkler tam liste olarak verildi.
+
+1. Claude Code + YENİ Google Stitch 2.0 ile 10X Daha İyi Tasarımlar
+Video: https://www.youtube.com/watch?v=Qplg4cHenPg
+
+TRANSKRIPT OZETI:
+- Video, Google Stitch 2.0 ile tasarim uretme ve Claude Code tarafina aktarma akisina odaklaniyor.
+- Ana akista Google Stitch tanitimi, design.md kullanimi, Claude MCP kurulumu, Mobbin ile tasarim ilhami, Claude ile web sitesi kodlama ve tasarim ozellestirme var.
+- Odak: tasarimci olmadan daha profesyonel arayuz uretmek ve bunu kod projesine tasimak.
+
+BOLUM / ZAMAN AKISI:
+- 00:00 - Introduction
+- 00:27 - What is Google Stitch? (AI-Powered UI Tool)
+- 01:41 - Transferring Designs to the Project in Seconds with design.md
+- 03:18 - Claude MCP Installation and Stitch Connection
+- 04:18 - Using Mobbin for Design Inspiration (Sponsored)
+- 05:23 - Professional Website Coding with Claude and MCP
+- 06:50 - Customizing and Editing Designs with Google Stitch
+- 07:19 - Google Stitch Usage Areas and Productivity Analysis
+- 08:38 - Closing
+
+ACIKLAMA KISMINDAN LINKLER:
+- http://mobbin.com/erayhamurlu
+- https://linktr.ee/erayhamurluaraclar
+- https://linktr.ee/erayhamurlu
+- eray@erayhamurlu.com
+
+==========================================================================================
+
+2. Google Stitch + Claude Code = Insane App Design
+Video: https://www.youtube.com/watch?v=sZQ7lqaOGMg
+
+TRANSKRIPT OZETI:
+- Video, Google Stitch ile uygulama/website tasarimi uretmeyi ve design.md yaklasimini Claude Code ile kullanmayi gosteriyor.
+- Akista ornek uygulama ekranlarindan tasarim uretme, tasarim sistemini inceleme, renk paleti degistirme, design.md dosyasini projeye alma ve Stitch MCP kurulum adimlari var.
+- Odak: AI tasarim sisteminin kod tarafinda tutarli arayuz uretmesini saglamak.
+
+BOLUM / ZAMAN AKISI:
+- 00:00 - Introduction to Google Stitch's latest release and the new design paradigm.
+- 01:05 - Explaining the significance of design.md for maintaining styles in code.
+- 03:59 - Demonstration begins: using screenshots of a basic app to generate new designs in Stitch.
+- 06:30 - Exploring the auto-generated design system and the design.md markdown file.
+- 09:50 - Iterating on the design by prompting changes to the color palette.
+- 11:22 - Copying the design.md file into the project to be used by Claude Code.
+- 12:28 - Walkthrough on how to set up the Google Stitch MCP with an API key.
+- 16:05 - Using the Stitch MCP to get Claude Code to match the exact screen layout.
+- 17:48 - Reviewing the redesigned app and noting the differences from the Stitch design.
+- 19:46 - Final verdict on the new Stitch design.md paradigm and its potential.
+
+ACIKLAMA KISMINDAN LINKLER:
+- https://www.skool.com/aiapps/about
+- https://calendly.com/chris-ashby/appstudio
+- https://readytobuild.app/
+- https://www.linkedin.com/in/ashbychris/
+- https://x.com/chris_bgp
+
+==========================================================================================
+
+3. WEB TASARIM TARİH OLDU ! (Claude Code + Stitch)
+Video: https://www.youtube.com/watch?v=PJ4JAim5-jQ
+
+TRANSKRIPT OZETI:
+- Video, Google Stitchi Figma alternatifi gibi kullanarak ucretsiz web tasarimi cikarma ve sonucu Claude Codea tasima surecini anlatiyor.
+- Akista Google Stitch kullanimi, tasarimin Claude Codea aktarilmasi, frontend kodlama ve GitHub/Vercel ile yayinlama var.
+- Odak: hizli web sitesi tasarlama, kodlama ve deploy etme.
+
+BOLUM / ZAMAN AKISI:
+- 00:00 - Free Web Design with AI (Figma Alternative)
+- 00:54 - What is Google Stitch and How to Use It?
+- 03:42 - Transferring Site Design to Claude Code
+- 05:02 - Frontend Coding with Claude Code
+- 08:31 - Deploying a Free Website with GitHub and Vercel
+
+ACIKLAMA KISMINDAN LINKLER:
+- https://tinyurl.com/skool-doa
+- https://kapatanai.com
+- https://www.operiqo.com
+
+==========================================================================================
+
+4. Claude Code Kills Canva & Figma For Web Design (Google Stitch)
+Video: https://www.youtube.com/watch?v=g1ip5LmiZMQ
+
+TRANSKRIPT OZETI:
+- Video, Google Stitch ve Claude Code ile kisa surede donusum odakli web siteleri uretme is akisini anlatiyor.
+- Akista rakip site tasarimini referans alma, Dribbbledan ilham alma, hazir design.md kaynaklari, Claude Code ile siteyi olusturma, CRO ogeleri ekleme ve Vercel deploy var.
+- Odak: sadece guzel gorunen degil, musteri donusumu hedefleyen siteler uretmek.
+
+BOLUM / ZAMAN AKISI:
+- 00:00 - Hook: 3 websites built in 10 minutes
+- 00:55 - What is Google Stitch?
+- 01:39 - Method 1: Clone any competitor's website
+- 05:08 - Method 2: Steal designs from Dribbble
+- 06:03 - Method 3: awesome-design.md GitHub repo (58 free templates)
+- 07:05 - Building the full website in Claude Code
+- 09:50 - First preview + fixing AI image nightmares
+- 11:39 - CRO: Making websites that actually convert
+- 12:44 - Social proof + brand logos + accolades
+- 13:26 - Video testimonials ($200/lead to $30/lead)
+- 14:41 - Call-to-action on every section
+- 15:07 - Video sales letter (10% to 15% conversion rate)
+- 15:58 - Deploy live with GitHub + Vercel (free)
+- 17:42 - Conclusion + paid community transformation
+
+ACIKLAMA KISMINDAN LINKLER:
+- https://www.skool.com/automatable/about
+- https://www.skool.com/automatable-free/classroom/6ca29126?md=985f68a0038044d7b583153683d48ea7
+- https://www.skool.com/automatable-free/about
+- https://instagram.com/jono_catliff
+- https://www.tiktok.com/@jonocatliff
+- https://www.linkedin.com/in/jonocatliff/
+- https://twitter.com/@jonocatliff
+- https://youtu.be/hinLebdX8aM
+- https://youtu.be/AURnISajubk
+- https://youtu.be/dIH1F1WlE84
+- https://youtu.be/uQGT2K26W84
+- https://jonocatliff.com/consultation
+- https://www.automatable.co
+- https://jonocatliff.com/n8n
+- https://jonocatliff.com/make
+- https://jonocatliff.com/gohighlevel
+- https://jonocatliff.com/apify
+- https://jonocatliff.com/skool
+- https://jonocatliff.com/zapier
+- https://jonocatliff.com/pandadoc
+- https://jonocatliff.com/apollo
+- https://jonocatliff.com/manychat
+- https://jonocatliff.com/vapi
+- https://jonocatliff.com/phantombuster
+- https://jonocatliff.com/clickup
+- https://jonocatliff.com/elevenlabs
+- https://jonocatliff.com/upwork
+- https://jonocatliff.com/instantly
+- https://jonocatliff.com/airtable
+
+==========================================================================================
+
+5. Google Stitch + Claude Code = Insane App Design
+Video: https://www.youtube.com/watch?v=BVXARR0JloU
+
+TRANSKRIPT OZETI:
+- Video, AI app gelistirmede once tasarim sistemi cikarip sonra Claude Code ile uygulamaya gecme yaklasimini anlatiyor.
+- Akista Google Stitch model secimi, baska sitelerden tasarim sistemi cikarma, design.md dosyasini yaratici referans olarak kullanma ve sesle/estetik komutlarla tasarimi yonlendirme var.
+- Odak: jenerik AI arayuzleri yerine kontrollu ve estetik uygulama tasarimlari uretmek.
+
+BOLUM / ZAMAN AKISI:
+- 00:00 - The "Wrong Order" of AI Development
+- 00:54 - Intro to Google Stitch & Model Selection
+- 01:28 - Extracting Design Systems from Other Sites
+- 02:34 - The design.md File: Your Creative North Star
+- 03:06 - Vibe Designing with Voice & Wes Anderson
+
+ACIKLAMA KISMINDAN LINKLER:
+- https://www.elleyuanwang.com/
+- https://stitch.withgoogle.com/
+- eywstudio@gmail.com
+- https://coff.ee/ellewang
+
+==========================================================================================
+
+6. Yapay Zeka ile Web Sitesi Tasarlama: Google Stitch + Claude Code ile 1 Dakikada (2026 Guncel)
+Video: https://www.youtube.com/watch?v=cxqVd_u4QBE
+
+TRANSKRIPT OZETI:
+- Video, Google Stitch ve Claude Code ile gorsel veya URL referansindan hizli web sitesi tasarimi uretmeyi anlatiyor.
+- Akista gorsel/URL yukleme, begenilen bir siteden ilham alma, tasarim detaylarini inceleme, yeniden tasarlatma, zip olarak disa aktarma ve WordPress gibi yapilara uyarlama var.
+- Odak: yapay zeka ile pratik web tasarimi ve disa aktarim sureci.
+
+BOLUM / ZAMAN AKISI:
+- 00:00 - What is Google Stitch?
+- 00:26 - Uploading Images and URLs
+- 00:49 - Getting Inspiration from a Liked Site
+- 01:13 - Reviewing the Design and Details
+- 01:40 - Redesigning by Taking Inspiration into Account
+- 02:07 - Exporting as a Zip File
+- 02:30 - Adapting to WordPress Infrastructure
+- 02:55 - Conclusion and Recommendations
+
+ACIKLAMA KISMINDAN LINKLER:
+- https://serdardogan.com.tr
+- https://growzy.com.tr
+- https://www.instagram.com/serdardogandijital/
+
+==========================================================================================
+
+7. Google Stitch + Claude Code: idea to live website in 27 minutes
+Video: https://www.youtube.com/watch?v=Prmec5Y9LKA
+
+TRANSKRIPT OZETI:
+- Video, Google Stitch ile fikirden canli web sitesine giden uctan uca is akisini anlatiyor.
+- Akista website ilhami bulma, Gemini ile mini PRD hazirlama, Firecrawl ile marka bilgisini cikarma, Stitch tasarimi uretme, Claude Codea aktarma, GitHub/Vercel deploy ve ozel domain ekleme var.
+- Odak: tasarim, kodlama ve yayinlama surecini tek bir pratik workflow haline getirmek.
+
+BOLUM / ZAMAN AKISI:
+- 00:00 - Intro
+- 00:30 - What is Google Stitch
+- 02:00 - Finding website inspiration
+- 04:30 - Creating a mini PRD with Gemini
+- 07:00 - Using Firecrawl to scrape branding
+- 08:30 - Feeding the PRD into Google Stitch
+- 10:30 - Designing in Stitch (variants, images, customization)
+- 16:00 - Exporting from Stitch to Claude Code
+- 18:00 - Building the website with Claude Code
+- 20:30 - The finished website
+- 22:00 - Deploying with GitHub and Vercel
+- 25:30 - Adding a custom domain
+- 26:30 - Wrap up
+
+ACIKLAMA KISMINDAN LINKLER:
+- https://aiwithremy.com
+- https://stitch.withgoogle.com
+- https://claude.ai/download
+- https://vercel.com
+- https://github.com
+- https://firecrawl.dev
+- https://land-book.com
+- https://godly.website
+- https://www.siteinspire.com
+- https://chromewebstore.google.com/detail/gofullpage-full-page-scre/fdpohaocaechififmbbbbbknoalclacl
+- https://code.visualstudio.com
+- https://x.com/remy_gaskell
+- https://www.linkedin.com/in/remygaskell/
+- https://www.instagram.com/aiwithremy/
+
+==========================================================================================
+
+8. Google Stitch 2.0 + Claude Code = INSANE (Live App Build)
+Video: https://www.youtube.com/watch?v=xTBprds0QzU
+
+TRANSKRIPT OZETI:
+- Video, Google Stitch 2.0 ve Claude Code ile canli bir web app build surecinin ilk bolumunu anlatiyor.
+- Akista yazilim uygulamalari icin dogru kurulum, Stitch icinde platform tasarlama, AI annotation ile tasarimi rafine etme, tasarim sistemini disa aktarma, PRD/activity log hazirlama ve Claude Code /init kurulumu var.
+- Odak: Claude Codeun tahmin ederek degil, net tasarim spesifikasyonuna gore uretmesini saglamak.
+
+BOLUM / ZAMAN AKISI:
+- 00:00 - Why most people use these tools wrong
+- 04:42 - Designing Klub in Google Stitch
+- 14:02 - Refining the design with AI annotation
+- 27:34 - Exporting from Stitch to your project
+- 31:11 - Setting up the project with Claude Code
+- 40:45 - Initialising Claude Code and CLAUDE.md
+
+ACIKLAMA KISMINDAN LINKLER:
+- URL formatinda link bulunamadi.
+
+==========================================================================================
+
+9. Build $10K Apps with Google Stitch + Claude Code (No Coding)
+Video: https://www.youtube.com/watch?v=izYC9wzg4vk
+
+TRANSKRIPT OZETI:
+- Video, Google Stitch ve Claude Code ile kod yazmadan daha profesyonel AI app uretme yaklasimini anlatiyor.
+- Akista AI slop problemi, tasarim sistemi olusturma, Stitch ve Claude Code baglantisi, MCP/API key kurulumu, design.md manifest, Claude ile UI rebuild, interaktivite, JSON database, React Router, API modal, dinamik veri ve monetizasyon/SEO/Stripe konulari var.
+- Odak: ticari degeri olabilecek premium AI uygulamalar uretme sureci.
+
+BOLUM / ZAMAN AKISI:
+- 00:00 - Intro: Building a $10,000 App with AI
+- 01:07 - Free Masterclass: Building Profitable AI SaaS
+- 01:45 - The Problem with "AI Slop" & Inconsistent App Design
+- 03:12 - Using Google Stitch to Create AI Design Systems
+- 06:09 - Setup: Connecting Google Stitch & Claude Code
+- 07:35 - Configuring the Google Stitch MCP & API Keys
+- 09:13 - Phase 1: Idea to High-Quality UI in Google Stitch
+- 11:21 - Generating the design.md System Manifest File
+- 13:32 - Phase 3: Rebuilding the App UI with Claude Code
+- 15:32 - Phase 4: Adding Interactivity and CSS States
+- 16:45 - Connecting a Local JSON Database with Claude
+- 17:49 - Setting up React Router Login & Access Control
+- 18:49 - Building the Core API Generation Utility Modal
+- 20:32 - Live Build: Premium Fitness Client Management App
+- 22:42 - Applying UI Design Tokens Directly with Claude Code
+- 24:29 - Fetching Dynamic Client Data into the Dashboard
+- 26:08 - Comparison: Generic AI Slop vs Professional Design
+- 26:40 - Monetization Strategy for Premium AI Apps
+- 27:48 - Optimizing Your AI App for SEO Discovery
+- 29:12 - Scaling Apps with Stripe Payment Integrations
+
+ACIKLAMA KISMINDAN LINKLER:
+- https://mikeyno-code.com/Skool-base44
+- https://base44.pxf.io/c/6440076/2477538/25619?trafcat=hp&sharedid=video124newx
+
+==========================================================================================

@@ -1,0 +1,11 @@
+---
+pid: 25812
+cwd: "C:\Users\Mel\cereb\tekpanel"
+command: "cd \"C:\\Users\\Mel\\cereb\\orr\"; npm run lint"
+started_at: 2026-06-29T19:22:54.045Z
+running_for_ms: 1985006  
+---
+
+> orr@0.1.0 lint
+> eslint
+
